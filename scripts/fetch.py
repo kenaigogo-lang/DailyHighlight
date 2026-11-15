@@ -41,8 +41,9 @@ REGION = "TW"              # 影片必須能在這個地區播放
 #   "second_half" = 只有下半場（3rd+4th）的影片，從 0 秒開始播
 #   "full"        = 全場精華，網頁從中間開始播
 # NBA 官方頻道的精華在台灣被封鎖（只開放 24 區），所以放最後、只在可播時使用。
+# TRAV13SO100（有 3rd+4th 下半場版）畫質只有 720p、片長較長，已停用：
+#   {"channel": "UC_X_2gCH9tvEKBwW8sibCtg", "name": "TRAV13SO100", "kind": "second_half"},
 SOURCES = [
-    {"channel": "UC_X_2gCH9tvEKBwW8sibCtg", "name": "TRAV13SO100", "kind": "second_half"},
     {"channel": "UC0LrZO9wORIqn_aRJtKdgfA", "name": "GAMETIME HIGHLIGHTS", "kind": "full"},
     {"channel": "UCS7kvhJx431xCKuSgkBaUWw", "name": "Ximo Pierto", "kind": "full"},
     {"channel": "UCWJ2lWNubArHWmf3FIHbfcQ", "name": "NBA", "kind": "full"},
@@ -228,6 +229,8 @@ def yt_details(key: str, ids: list[str]) -> dict[str, dict]:
             cd, st = it.get("contentDetails", {}), it.get("status", {})
             rr = cd.get("regionRestriction") or {}
             ok = st.get("embeddable", True) and st.get("privacyStatus", "public") == "public"
+            if cd.get("definition") == "sd":  # API 只分 hd(≥720p)/sd，sd 不要
+                ok = False
             if "allowed" in rr and REGION not in rr["allowed"]:
                 ok = False
             if REGION in rr.get("blocked", []):

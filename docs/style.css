@@ -66,6 +66,7 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .02em; display: flex; gap: 6px;
 .date-chip[aria-current="true"] small { color: inherit; opacity: .8; }
 .summary { margin: 0; padding: 0 0 10px; font-size: 14px; color: var(--muted); }
 .summary b { color: var(--text); }
+.summary .refresh { margin-left: 6px; color: var(--accent); text-decoration: none; white-space: nowrap; font-weight: 700; }
 .summary .waiting { color: var(--warn); }
 
 .hint { color: var(--muted); font-size: 13px; margin: 14px 0 10px; }

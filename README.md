@@ -5,9 +5,8 @@
 ## 功能
 
 - 影片來源：只用**在台灣可播放**的影片（NBA 官方精華在台灣被封鎖）。依 `scripts/fetch.py` 的 `SOURCES` 順序：
-  1. TRAV13SO100 的「3rd+4th Highlights」（只有下半場，從頭播）
-  2. GAMETIME HIGHLIGHTS 的 Full Game Highlights（從中間開始播）
-  3. Ximo Pierto、NBA 官方（備用）
+  1. GAMETIME HIGHLIGHTS 的 Full Game Highlights（約 9 分鐘，從中間開始播）
+  2. Ximo Pierto、NBA 官方（備用）
 - 每支影片都會用 YouTube API 檢查地區限制與能否嵌入；`scripts/probe_sources.py`（Actions「探測可播放的影片來源」）可重新評估各頻道
 - 點「▶ 看下半場」直接從影片中段開始播，可用「⏪ 30 秒／下半場／從頭看」微調
 - 精彩度排序：越精彩越上面，排序依據只在後端計算，前端看不到任何分數

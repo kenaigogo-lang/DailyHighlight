@@ -131,7 +131,7 @@ async function load(date) {
   if (waiting > 0) parts.push(`<span class="waiting">⏳ ${waiting} 場影片還沒上架</span>`);
   if (skipped > 0) parts.push(`${skipped} 場延期／取消`);
   parts.push(`更新於 ${fmtUpdated(day.updated)}`);
-  $("#summary").innerHTML = parts.join(" · ");
+  $("#summary").innerHTML = parts.join(" · ") + " ·";
 
   const list = $("#games");
   let rank = 0;
