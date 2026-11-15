@@ -323,8 +323,18 @@ def main() -> int:
 
     need_all = [(d, g) for d, _, need in todo for g in need]
     yt_error = None
+
+    # 補上舊資料中缺少的影片長度
+    key = os.environ.get("YOUTUBE_API_KEY", "").strip()
+    no_dur = [g for _, day, _ in todo for g in day["games"] if g.get("video") and not g["video"].get("duration")]
+    if key and no_dur:
+        try:
+            durs = yt_durations(key, [g["video"]["id"] for g in no_dur])
+            for g in no_dur:
+                g["video"]["duration"] = durs.get(g["video"]["id"], 0)
+        except Exception as e:
+            print(f"⚠️ 影片長度查詢失敗：{e}")
     if need_all:
-        key = os.environ.get("YOUTUBE_API_KEY", "").strip()
         earliest = min(datetime.fromisoformat(g["start"].replace("Z", "+00:00")) for _, g in need_all)
         try:
             if key:
