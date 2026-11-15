@@ -1,0 +1,156 @@
+:root {
+  --bg: #0f1115;
+  --surface: #181b22;
+  --surface-2: #20242d;
+  --border: #2a2f3a;
+  --text: #e8eaee;
+  --muted: #8b93a3;
+  --accent: #ff7a1a;
+  --accent-text: #1a0d02;
+  --warn: #f2b84b;
+  --radius: 14px;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --surface-2: #eef0f3;
+    --border: #dde1e7;
+    --text: #15181e;
+    --muted: #5f6878;
+    --accent: #e8620a;
+    --accent-text: #ffffff;
+    --warn: #a86a00;
+    color-scheme: light;
+  }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  overflow-x: hidden;
+}
+.wrap { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+
+/* ---------- header ---------- */
+.top {
+  position: sticky; top: 0; z-index: 10;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  padding-top: env(safe-area-inset-top);
+}
+h1 { font-size: 20px; margin: 0; padding: 14px 0 8px; letter-spacing: .02em; }
+.dates {
+  display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px;
+  scrollbar-width: none;
+}
+.dates::-webkit-scrollbar { display: none; }
+.date-chip {
+  flex: 0 0 auto;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); border-radius: 999px;
+  padding: 6px 12px; font: inherit; font-size: 14px; cursor: pointer;
+}
+.date-chip small { color: var(--muted); margin-left: 4px; }
+.date-chip[aria-current="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.date-chip[aria-current="true"] small { color: inherit; opacity: .8; }
+.summary { margin: 0; padding: 0 0 10px; font-size: 14px; color: var(--muted); }
+.summary b { color: var(--text); }
+.summary .waiting { color: var(--warn); }
+
+.hint { color: var(--muted); font-size: 13px; margin: 14px 0 10px; }
+.empty { color: var(--muted); text-align: center; padding: 40px 0; }
+
+/* ---------- game card ---------- */
+.games { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.game {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px;
+}
+.row { display: flex; align-items: center; gap: 12px; }
+.rank {
+  flex: 0 0 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--surface-2); color: var(--muted);
+  font-size: 13px; font-weight: 700;
+}
+.teams { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.team { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.team.home { flex-direction: row-reverse; text-align: right; }
+.team img { width: 40px; height: 40px; object-fit: contain; flex: 0 0 auto; }
+.team .name { font-weight: 700; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team .name small { display: block; font-weight: 400; font-size: 12px; color: var(--muted); }
+.at { color: var(--muted); font-size: 13px; flex: 0 0 auto; }
+
+.meta { display: flex; gap: 10px; flex-wrap: wrap; margin: 8px 0 0 40px; font-size: 13px; color: var(--muted); }
+.tag:empty { display: none; }
+.tag { background: var(--surface-2); border-radius: 6px; padding: 0 6px; }
+
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.status { font-size: 14px; color: var(--warn); }
+.status:empty { display: none; }
+.actions .box { margin-left: auto; }
+
+.btn {
+  font: inherit; font-size: 14px; cursor: pointer;
+  border-radius: 10px; padding: 8px 14px;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 700; }
+.btn.ghost { background: transparent; color: var(--muted); }
+.btn.small { padding: 6px 10px; font-size: 13px; }
+.btn:disabled { opacity: .4; cursor: default; }
+
+/* ---------- player ---------- */
+.player { margin-top: 12px; }
+.frame {
+  position: relative; width: 100%; aspect-ratio: 16 / 9;
+  background: #000; border-radius: 10px; overflow: hidden;
+}
+.frame:fullscreen { border-radius: 0; aspect-ratio: auto; }
+.frame:-webkit-full-screen { border-radius: 0; }
+.yt, .frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+/* 蓋住 YouTube 的暫停推薦、片尾推薦、縮圖，避免暴雷 */
+.cover {
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  background: #0b0d11; color: #c9ced8;
+}
+.cover[hidden] { display: none; }
+.cover-btn {
+  width: 72px; height: 72px; border-radius: 50%;
+  border: 0; background: var(--accent); color: var(--accent-text);
+  font-size: 28px; cursor: pointer; padding-left: 6px;
+}
+.cover-text { font-size: 14px; }
+.controls { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+/* ---------- box score ---------- */
+.boxscore { margin-top: 12px; border-top: 1px dashed var(--border); padding-top: 12px; }
+.boxscore h3 { font-size: 15px; margin: 14px 0 6px; display: flex; align-items: center; gap: 8px; }
+.boxscore h3 img { width: 22px; height: 22px; }
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { border-collapse: collapse; font-size: 13px; width: 100%; white-space: nowrap; font-variant-numeric: tabular-nums; }
+th, td { padding: 5px 7px; text-align: right; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 600; font-size: 12px; }
+th:first-child, td:first-child { text-align: left; position: sticky; left: 0; background: var(--surface); }
+tr.bench-start td { border-top: 2px solid var(--border); }
+tr.total td { font-weight: 700; }
+tr.dnp td { color: var(--muted); }
+td.pts { font-weight: 700; }
+.pos { color: var(--muted); font-size: 11px; margin-left: 4px; }
+
+.foot { color: var(--muted); font-size: 12px; text-align: center; padding: 28px 16px calc(28px + env(safe-area-inset-bottom)); }
+
+@media (max-width: 420px) {
+  .team img { width: 32px; height: 32px; }
+  .team .name { font-size: 15px; }
+  .meta { margin-left: 0; }
+}

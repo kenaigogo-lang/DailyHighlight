@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NBA 每日精華</title>
+<meta name="description" content="每天 NBA 比賽精華，依精彩程度排序，不暴雷。">
+<meta name="theme-color" content="#0f1115">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏀</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1>🏀 NBA 每日精華</h1>
+    <nav class="dates" id="dates" aria-label="選擇日期"></nav>
+    <p class="summary" id="summary"></p>
+  </div>
+</header>
+
+<main class="wrap">
+  <p class="hint">由上到下：越精彩越前面。畫面上不會出現任何比分。</p>
+  <ol class="games" id="games"></ol>
+  <p class="empty" id="empty" hidden></p>
+</main>
+
+<footer class="wrap foot">
+  影片來源：NBA 官方 YouTube 頻道 · 數據：ESPN<br>
+  每天台灣時間 15:00、16:00 自動更新，沒抓到的影片之後會自動補上
+</footer>
+
+<template id="tpl-game">
+  <li class="game">
+    <div class="row">
+      <span class="rank"></span>
+      <div class="teams">
+        <div class="team away"><img alt="" loading="lazy"><span class="name"></span></div>
+        <span class="at">@</span>
+        <div class="team home"><img alt="" loading="lazy"><span class="name"></span></div>
+      </div>
+    </div>
+    <div class="meta"><span class="time"></span><span class="tag"></span></div>
+    <div class="actions">
+      <button class="btn primary play" type="button">▶ 看下半場</button>
+      <span class="status"></span>
+      <button class="btn ghost box" type="button">⚠️ 查看數據（含比分）</button>
+    </div>
+    <div class="player" hidden>
+      <div class="frame">
+        <div class="yt"></div>
+        <div class="cover">
+          <button class="cover-btn" type="button">▶</button>
+          <span class="cover-text"></span>
+        </div>
+      </div>
+      <div class="controls">
+        <button class="btn small back30" type="button">⏪ 30 秒</button>
+        <button class="btn small half" type="button">下半場</button>
+        <button class="btn small fromstart" type="button">從頭看</button>
+        <button class="btn small fs" type="button">⛶ 全螢幕</button>
+        <button class="btn small close" type="button">✕ 關閉</button>
+      </div>
+    </div>
+    <div class="boxscore" hidden></div>
+  </li>
+</template>
+
+<script src="app.js"></script>
+</body>
+</html>
