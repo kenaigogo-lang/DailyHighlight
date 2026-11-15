@@ -12,6 +12,21 @@ const TEAM_ZH = {
   NO: "鵜鶘", NY: "尼克", OKC: "雷霆", ORL: "魔術", PHI: "76人", PHX: "太陽",
   POR: "拓荒者", SAC: "國王", SA: "馬刺", TOR: "暴龍", UTAH: "爵士", WSH: "巫師",
 };
+// 各隊代表色（D 球衣撞色主題用）
+const TEAM_COLOR = {
+  ATL: "#e03a3e", BOS: "#007a33", BKN: "#2b2b2b", CHA: "#1d1160", CHI: "#ce1141", CLE: "#860038",
+  DAL: "#00538c", DEN: "#0e2240", DET: "#c8102e", GS: "#1d428a", HOU: "#ce1141", IND: "#002d62",
+  LAC: "#c8102e", LAL: "#552583", MEM: "#5d76a9", MIA: "#98002e", MIL: "#00471b", MIN: "#0c2340",
+  NO: "#0c2340", NY: "#f58426", OKC: "#007ac1", ORL: "#0077c0", PHI: "#006bb6", PHX: "#e56020",
+  POR: "#e03a3e", SAC: "#5a2d81", SA: "#5b6670", TOR: "#ce1141", UTAH: "#002b5c", WSH: "#002b5c",
+};
+const SKINS = ["C", "D", "E"];
+// 兩隊顏色太像（例如老鷹、公牛都是紅）就把主隊改深灰
+function colorDist(a, b) {
+  const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const [x, y] = [rgb(a), rgb(b)];
+  return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]);
+}
 const WEEK = ["日", "一", "二", "三", "四", "五", "六"];
 const BOX_COLS = [
   ["MIN", "時間"], ["PTS", "得分"], ["REB", "籃板"], ["AST", "助攻"], ["STL", "抄截"],
@@ -128,6 +143,11 @@ async function load(date) {
 function renderGame(g, rank) {
   const li = $("#tpl-game").content.firstElementChild.cloneNode(true);
   $(".rank", li).textContent = rank ?? "–";
+  $(".stub", li).textContent = rank ? `No.${rank}` : "—";
+  if (rank) li.dataset.rank = rank; else li.dataset.pending = "1";
+  const ca = TEAM_COLOR[g.away.abbr] || "#333", ch = TEAM_COLOR[g.home.abbr] || "#555";
+  li.style.setProperty("--a", ca);
+  li.style.setProperty("--h", colorDist(ca, ch) < 90 ? "#26282e" : ch);
   for (const side of ["away", "home"]) {
     const t = g[side];
     const el = $(`.team.${side}`, li);
@@ -382,5 +402,11 @@ async function openPlayer(li, video) {
   players.add(handle);
   wrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
+
+// 換風格按鈕：依序切換 C → D → E
+document.getElementById("skin-btn").onclick = () => {
+  const root = document.documentElement;
+  root.dataset.skin = SKINS[(SKINS.indexOf(root.dataset.skin) + 1) % SKINS.length];
+};
 
 init();

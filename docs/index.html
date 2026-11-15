@@ -7,12 +7,26 @@
 <meta name="description" content="每天 NBA 比賽精華，依精彩程度排序，不暴雷。">
 <meta name="theme-color" content="#0f1115">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏀</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:ital,wght@0,600;1,700;1,800&family=Bebas+Neue&family=Noto+Sans+TC:wght@400;700;900&family=Noto+Serif+TC:wght@700;900&display=swap" rel="stylesheet">
+<script>
+  // 隨機挑一種風格（C 復古票根 / D 球衣撞色 / E 電視轉播），網址 ?skin=C 可指定
+  (function () {
+    var S = ["C", "D", "E"], q = new URLSearchParams(location.search).get("skin");
+    document.documentElement.dataset.skin = S.indexOf(q) >= 0 ? q : S[Math.floor(Math.random() * S.length)];
+  })();
+</script>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="skins.css">
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <h1>🏀 NBA 每日精華</h1>
+    <div class="titlebar">
+      <h1><span class="h1a">NBA</span><span class="h1b">每日精華</span></h1>
+      <button class="skin-btn" id="skin-btn" type="button" title="換一種風格">🎲 換風格</button>
+    </div>
     <nav class="dates" id="dates" aria-label="選擇日期"></nav>
     <p class="summary" id="summary"></p>
   </div>
@@ -25,12 +39,13 @@
 </main>
 
 <footer class="wrap foot">
-  影片來源：NBA 官方 YouTube 頻道 · 數據：ESPN<br>
+  影片來源：YouTube（只選台灣可播放的精華）· 數據：ESPN<br>
   每天台灣時間 15:00、16:00 自動更新，沒抓到的影片之後會自動補上
 </footer>
 
 <template id="tpl-game">
   <li class="game">
+    <span class="stub"></span>
     <div class="row">
       <span class="rank"></span>
       <div class="teams">
