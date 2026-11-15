@@ -261,7 +261,9 @@ async function openPlayer(li, video) {
   // iPhone 不支援把一般元素全螢幕，這時改用 YouTube 播放器自己的全螢幕鈕
   const canOwnFullscreen = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
   let duration = video.duration || 0;
-  const halfAt = () => Math.floor((duration || 0) * SECOND_HALF_RATIO);
+  // video.half = 這支影片本身就只有下半場（3rd+4th），從 0 秒開始
+  const halfAt = () => (video.half ? 0 : Math.floor((duration || 0) * SECOND_HALF_RATIO));
+  $(".fromstart", wrap).hidden = !!video.half;
   let timer = null;
   let stoppedAtEnd = false;
   let started = false;
@@ -291,13 +293,13 @@ async function openPlayer(li, video) {
     playerVars: {
       autoplay: 1, playsinline: 1, rel: 0, iv_load_policy: 3,
       modestbranding: 1, fs: canOwnFullscreen ? 0 : 1,
-      start: duration ? halfAt() : 0,
+      start: video.half || !duration ? 0 : halfAt(),
     },
     events: {
       onReady: () => {
         if (!duration) {
           duration = player.getDuration() || 0;
-          if (duration) player.seekTo(halfAt(), true);
+          if (duration && !video.half) player.seekTo(halfAt(), true);
         }
         player.playVideo();
         // iPhone 等會擋「有聲自動播放」：改成靜音播放（一定允許），再讓使用者開聲音

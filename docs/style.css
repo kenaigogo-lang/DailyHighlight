@@ -107,6 +107,7 @@ h1 { font-size: 20px; margin: 0; padding: 14px 0 8px; letter-spacing: .02em; }
 .btn.ghost { background: transparent; color: var(--muted); }
 .btn.small { padding: 6px 10px; font-size: 13px; }
 .btn:disabled { opacity: .4; cursor: default; }
+.btn[hidden] { display: none; }
 
 /* ---------- player ---------- */
 .player { margin-top: 12px; }

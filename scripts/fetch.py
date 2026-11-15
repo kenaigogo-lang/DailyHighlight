@@ -4,7 +4,7 @@
 由 GitHub Actions 每天執行（台灣時間 15:00、16:00）：
   1. 從 ESPN 抓目標日期所有比賽、box score、逐球紀錄
   2. 計算精彩度（只在這裡算，不寫進輸出檔）並排序
-  3. 從 NBA 官方 YouTube 頻道找每場的 FULL GAME HIGHLIGHTS
+  3. 依 SOURCES 順序找每場在台灣可播放的精華（優先下半場專用版）
   4. 寫入 docs/data/YYYY-MM-DD.json 與 docs/data/index.json
 
 已經「完整」（所有比賽結束且影片都找到）的日期不會再重抓，
@@ -24,7 +24,6 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-import xml.etree.ElementTree as ET
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -35,14 +34,24 @@ DATA_DIR = ROOT / "docs" / "data"
 ESPN_SCOREBOARD = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates={d}"
 ESPN_SUMMARY = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event={id}"
 
-NBA_CHANNEL_ID = "UCWJ2lWNubArHWmf3FIHbfcQ"
-NBA_UPLOADS_PLAYLIST = "UU" + NBA_CHANNEL_ID[2:]
 YT_API = "https://www.googleapis.com/youtube/v3/"
-YT_RSS = f"https://www.youtube.com/feeds/videos.xml?channel_id={NBA_CHANNEL_ID}"
+REGION = "TW"              # 影片必須能在這個地區播放
+
+# 影片來源，依優先順序。kind:
+#   "second_half" = 只有下半場（3rd+4th）的影片，從 0 秒開始播
+#   "full"        = 全場精華，網頁從中間開始播
+# NBA 官方頻道的精華在台灣被封鎖（只開放 24 區），所以放最後、只在可播時使用。
+SOURCES = [
+    {"channel": "UC_X_2gCH9tvEKBwW8sibCtg", "name": "TRAV13SO100", "kind": "second_half"},
+    {"channel": "UC0LrZO9wORIqn_aRJtKdgfA", "name": "GAMETIME HIGHLIGHTS", "kind": "full"},
+    {"channel": "UCS7kvhJx431xCKuSgkBaUWw", "name": "Ximo Pierto", "kind": "full"},
+    {"channel": "UCWJ2lWNubArHWmf3FIHbfcQ", "name": "NBA", "kind": "full"},
+]
+VALID_SRCS = {x["name"] for x in SOURCES}
 
 ET_TZ = ZoneInfo("America/New_York")
 BACKFILL_DAYS = 7          # 往回補找幾天
-YT_MAX_PAGES = 15          # 最多翻幾頁上傳清單（每頁 50 支、1 單位額度）
+YT_MAX_PAGES = 10          # 每個頻道最多翻幾頁上傳清單（每頁 50 支、1 單位額度）
 DONE_STATES = {"post"}     # ESPN status.type.state
 SKIP_NAMES = {"STATUS_POSTPONED", "STATUS_CANCELED", "STATUS_CANCELLED", "STATUS_SUSPENDED"}
 
@@ -185,12 +194,13 @@ def iso_duration_seconds(s: str) -> int:
     return d * 86400 + h * 3600 + mi * 60 + se
 
 
-def yt_uploads_api(key: str, since: datetime) -> list[dict]:
-    """用 API 翻 NBA 頻道上傳清單，直到早於 since。"""
+def yt_uploads(key: str, channel_id: str, since: datetime) -> list[dict]:
+    """翻某頻道的上傳清單，直到早於 since。"""
     headers = {"X-Goog-Api-Key": key}
+    playlist = "UU" + channel_id[2:]
     videos, token = [], ""
     for _ in range(YT_MAX_PAGES):
-        q = {"part": "snippet", "playlistId": NBA_UPLOADS_PLAYLIST, "maxResults": 50}
+        q = {"part": "snippet", "playlistId": playlist, "maxResults": 50}
         if token:
             q["pageToken"] = token
         data = get_json(YT_API + "playlistItems?" + urllib.parse.urlencode(q), headers)
@@ -208,27 +218,21 @@ def yt_uploads_api(key: str, since: datetime) -> list[dict]:
     return videos
 
 
-def yt_durations(key: str, ids: list[str]) -> dict[str, int]:
+def yt_details(key: str, ids: list[str]) -> dict[str, dict]:
+    """影片長度 + 是否能在 REGION 播放、能否嵌入。"""
     out = {}
     for i in range(0, len(ids), 50):
-        q = {"part": "contentDetails", "id": ",".join(ids[i:i + 50])}
+        q = {"part": "contentDetails,status", "id": ",".join(ids[i:i + 50])}
         data = get_json(YT_API + "videos?" + urllib.parse.urlencode(q), {"X-Goog-Api-Key": key})
         for it in data.get("items", []):
-            out[it["id"]] = iso_duration_seconds(it["contentDetails"]["duration"])
-    return out
-
-
-def yt_uploads_rss() -> list[dict]:
-    """沒有金鑰時的備案：RSS 只有最新 15 支，無法保證找齊。"""
-    root = ET.fromstring(get(YT_RSS))
-    ns = {"a": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015"}
-    out = []
-    for e in root.findall("a:entry", ns):
-        out.append({
-            "id": e.find("yt:videoId", ns).text,
-            "title": e.find("a:title", ns).text,
-            "published": datetime.fromisoformat(e.find("a:published", ns).text),
-        })
+            cd, st = it.get("contentDetails", {}), it.get("status", {})
+            rr = cd.get("regionRestriction") or {}
+            ok = st.get("embeddable", True) and st.get("privacyStatus", "public") == "public"
+            if "allowed" in rr and REGION not in rr["allowed"]:
+                ok = False
+            if REGION in rr.get("blocked", []):
+                ok = False
+            out[it["id"]] = {"duration": iso_duration_seconds(cd.get("duration", "")), "playable": ok}
     return out
 
 
@@ -236,35 +240,62 @@ def norm(s: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^A-Z0-9 ]", " ", s.upper())).strip()
 
 
-def is_full_highlight(title: str) -> bool:
+SECOND_HALF_RE = re.compile(r"\b3RD 4TH\b|\b3RD AND 4TH\b|\bSECOND HALF\b|\b2ND HALF\b")
+
+
+def title_kind(title: str) -> str | None:
     t = norm(title)
-    return "FULL GAME HIGHLIGHTS" in t or t.endswith("GAME HIGHLIGHTS")
+    if SECOND_HALF_RE.search(t):
+        return "second_half"
+    if "FULL GAME HIGHLIGHTS" in t:
+        return "full"
+    return None
 
 
-def match_video(game: dict, game_date: date, videos: list[dict]) -> dict | None:
-    """找這場的精華：標題要含兩隊隊名，且是 FULL GAME HIGHLIGHTS。
-    有 EXTENDED 加長版就優先使用。"""
+def match_candidates(game: dict, game_date: date, videos: list[dict], kind: str) -> list[dict]:
+    """標題要含兩隊隊名、類型相符，並在開賽後 2 天內上傳；寫了比賽日期的優先，EXTENDED 優先。"""
     away, home = norm(game["away"]["name"]), norm(game["home"]["name"])
     date_str = norm(f"{MONTHS[game_date.month - 1]} {game_date.day}, {game_date.year}")
     start = datetime.fromisoformat(game["start"].replace("Z", "+00:00"))
     cands = []
     for v in videos:
         t = norm(v["title"])
-        if not is_full_highlight(v["title"]):
+        if title_kind(v["title"]) != kind:
             continue
         if f" {away} " not in f" {t} " or f" {home} " not in f" {t} ":
             continue
-        has_date = date_str in t
-        # 沒寫日期的標題，就要求在開賽後 2 天內上傳
-        if not has_date and not (start <= v["published"] <= start + timedelta(days=2)):
+        if not (start <= v["published"] <= start + timedelta(days=2)):
             continue
-        if v["published"] < start:
-            continue
-        cands.append((t.startswith("EXTENDED"), has_date, v))
-    if not cands:
-        return None
+        cands.append(((date_str in t), t.startswith("EXTENDED"), v))
     cands.sort(key=lambda c: (c[0], c[1]), reverse=True)
-    return cands[0][2]
+    return [c[2] for c in cands]
+
+
+def find_videos(key: str, need: list[tuple[date, dict]]) -> None:
+    """依 SOURCES 順序替每場找第一支「台灣可播」的影片，直接寫進 game["video"]。"""
+    earliest = min(datetime.fromisoformat(g["start"].replace("Z", "+00:00")) for _, g in need)
+    remaining = list(need)
+    for src in SOURCES:
+        if not remaining:
+            break
+        videos = yt_uploads(key, src["channel"], earliest)
+        picks = {}
+        for d, g in remaining:
+            c = match_candidates(g, d, videos, src["kind"])
+            if c:
+                picks[g["id"]] = c
+        det = yt_details(key, list({v["id"] for c in picks.values() for v in c})) if picks else {}
+        still = []
+        for d, g in remaining:
+            ok = [v for v in picks.get(g["id"], []) if det.get(v["id"], {}).get("playable")]
+            if ok:
+                v = ok[0]
+                g["video"] = {"id": v["id"], "duration": det[v["id"]]["duration"],
+                              "half": src["kind"] == "second_half", "src": src["name"]}
+            else:
+                still.append((d, g))
+        print(f"  來源 {src['name']}: 上傳 {len(videos)} 支，這次配到 {len(remaining) - len(still)} 場")
+        remaining = still
 
 
 # ---------------------------------------------------------------- 主流程
@@ -280,15 +311,19 @@ def load_day(d: date) -> dict | None:
     return json.loads(p.read_text()) if p.exists() else None
 
 
+def valid_video(v: dict | None) -> bool:
+    return bool(v) and v.get("src") in VALID_SRCS
+
+
 def is_complete(day: dict) -> bool:
-    return all(g["state"] == "skipped" or (g["state"] == "final" and g["video"]) for g in day["games"])
+    return all(g["state"] == "skipped" or (g["state"] == "final" and valid_video(g["video"])) for g in day["games"])
 
 
 def build_day(d: date, prev: dict | None) -> tuple[dict, list[dict]]:
     """回傳 (day 資料, 需要找影片的比賽清單)。"""
     games = fetch_games(d)
     games.sort(key=lambda g: (g["_key"] is None, g["_key"] if g["_key"] is not None else 0, g["start"]))
-    old_videos = {g["id"]: g["video"] for g in (prev or {}).get("games", []) if g.get("video")}
+    old_videos = {g["id"]: g["video"] for g in (prev or {}).get("games", []) if valid_video(g.get("video"))}
     need = []
     for g in games:
         g.pop("_key", None)
@@ -323,41 +358,18 @@ def main() -> int:
 
     need_all = [(d, g) for d, _, need in todo for g in need]
     yt_error = None
-
-    # 補上舊資料中缺少的影片長度
     key = os.environ.get("YOUTUBE_API_KEY", "").strip()
-    no_dur = [g for _, day, _ in todo for g in day["games"] if g.get("video") and not g["video"].get("duration")]
-    if key and no_dur:
-        try:
-            durs = yt_durations(key, [g["video"]["id"] for g in no_dur])
-            for g in no_dur:
-                g["video"]["duration"] = durs.get(g["video"]["id"], 0)
-        except Exception as e:
-            print(f"⚠️ 影片長度查詢失敗：{e}")
     if need_all:
-        earliest = min(datetime.fromisoformat(g["start"].replace("Z", "+00:00")) for _, g in need_all)
-        try:
-            if key:
-                videos = yt_uploads_api(key, earliest)
-                src = "API"
-            else:
-                print("⚠️ 沒有 YOUTUBE_API_KEY，改用 RSS（只有最新 15 支，可能找不齊）")
-                videos = yt_uploads_rss()
-                src = "RSS"
-            print(f"YouTube({src}): 取得 {len(videos)} 支影片")
-            found = {}
-            for d, g in need_all:
-                v = match_video(g, d, videos)
-                if v:
-                    found[g["id"]] = v
-            durations = yt_durations(key, [v["id"] for v in found.values()]) if key and found else {}
-            for d, g in need_all:
-                v = found.get(g["id"])
-                if v:
-                    g["video"] = {"id": v["id"], "duration": durations.get(v["id"], 0)}
-        except Exception as e:  # 影片找不到不影響比分寫入，下次執行會再補
-            yt_error = e
-            print(f"❌ YouTube 查詢失敗：{e}")
+        if not key:
+            yt_error = RuntimeError("沒有 YOUTUBE_API_KEY")
+            print("❌ 沒有 YOUTUBE_API_KEY，無法找影片")
+        else:
+            try:
+                print(f"YouTube：替 {len(need_all)} 場找影片（地區 {REGION}）")
+                find_videos(key, need_all)
+            except Exception as e:  # 影片找不到不影響比分寫入，下次執行會再補
+                yt_error = e
+                print(f"❌ YouTube 查詢失敗：{e}")
 
     for d, day, _ in todo:
         day["complete"] = is_complete(day)
