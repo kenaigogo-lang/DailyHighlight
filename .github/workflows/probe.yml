@@ -12,6 +12,9 @@ on:
       games:
         description: "搜尋幾場"
         default: "4"
+      channels:
+        description: "（選填）逗號分隔頻道 ID：改做覆蓋率檢查"
+        default: ""
 
 permissions:
   contents: read
@@ -30,4 +33,5 @@ jobs:
           IN_DATE: ${{ inputs.date }}
           IN_REGION: ${{ inputs.region }}
           IN_GAMES: ${{ inputs.games }}
-        run: python scripts/probe_sources.py --date "$IN_DATE" --region "$IN_REGION" --games "$IN_GAMES"
+          IN_CHANNELS: ${{ inputs.channels }}
+        run: python scripts/probe_sources.py --date "$IN_DATE" --region "$IN_REGION" --games "$IN_GAMES" --channels "$IN_CHANNELS"
