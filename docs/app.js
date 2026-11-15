@@ -258,16 +258,36 @@ async function openPlayer(li, video) {
   $(".yt", wrap).replaceWith(ytEl);
   ytEl.className = "yt";
 
-  const canOwnFullscreen = !!(frame.requestFullscreen || frame.webkitRequestFullscreen);
+  // iPhone 不支援把一般元素全螢幕，這時改用 YouTube 播放器自己的全螢幕鈕
+  const canOwnFullscreen = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
   let duration = video.duration || 0;
   const halfAt = () => Math.floor((duration || 0) * SECOND_HALF_RATIO);
   let timer = null;
   let stoppedAtEnd = false;
   let started = false;
 
+  const sound = $(".sound", wrap);
+  sound.hidden = true;
+  const showSoundHint = () => {
+    sound.hidden = false;
+    sound.textContent = "🔇 靜音播放中，點這裡開聲音";
+    sound.onclick = () => {
+      player.unMute();
+      player.setVolume(100);
+      setTimeout(() => {
+        if (player.isMuted && player.isMuted()) {
+          sound.textContent = "🔇 請點影片畫面，再按左下角的喇叭開聲音";
+        } else {
+          sound.hidden = true;
+        }
+      }, 600);
+    };
+  };
+  // 最後手段：讓使用者直接點 YouTube 自己的播放鈕
+  const revealYouTube = () => { if (!started) cover.hidden = true; };
+
   const player = new YT.Player(ytEl, {
     videoId: video.id,
-    host: "https://www.youtube-nocookie.com",
     playerVars: {
       autoplay: 1, playsinline: 1, rel: 0, iv_load_policy: 3,
       modestbranding: 1, fs: canOwnFullscreen ? 0 : 1,
@@ -280,8 +300,14 @@ async function openPlayer(li, video) {
           if (duration) player.seekTo(halfAt(), true);
         }
         player.playVideo();
-        // 手機若擋自動播放，就顯示我們自己的播放鈕
-        setTimeout(() => { if (!started) showCover("點一下開始播放"); }, 1500);
+        // iPhone 等會擋「有聲自動播放」：改成靜音播放（一定允許），再讓使用者開聲音
+        setTimeout(() => {
+          if (started) return;
+          player.mute();
+          player.playVideo();
+          showSoundHint();
+          setTimeout(revealYouTube, 2500);
+        }, 1200);
       },
       onStateChange: (e) => {
         const S = YT.PlayerState;
@@ -301,6 +327,7 @@ async function openPlayer(li, video) {
 
   // 結尾前自動停止，片尾推薦就不會出現
   timer = setInterval(() => {
+    if (!sound.hidden && player.isMuted && !player.isMuted()) sound.hidden = true;
     if (!player.getCurrentTime || !duration) return;
     const t = player.getCurrentTime();
     if (!stoppedAtEnd && t >= duration - STOP_BEFORE_END && player.getPlayerState() === YT.PlayerState.PLAYING) {
@@ -318,6 +345,10 @@ async function openPlayer(li, video) {
   coverBtn.onclick = () => {
     if (stoppedAtEnd) seek(halfAt());
     else player.playVideo();
+    // 如果瀏覽器不讓外部按鈕播放，就把 YouTube 自己的播放鈕露出來
+    setTimeout(() => {
+      if (player.getPlayerState() !== YT.PlayerState.PLAYING) cover.hidden = true;
+    }, 1000);
   };
   $(".back30", wrap).onclick = () => seek(player.getCurrentTime() - 30);
   $(".half", wrap).onclick = () => seek(halfAt());
