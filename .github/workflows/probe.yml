@@ -1,0 +1,33 @@
+name: 探測可播放的影片來源
+
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "美國日期 YYYY-MM-DD"
+        default: "2026-11-13"
+      region:
+        description: "地區代碼"
+        default: "TW"
+      games:
+        description: "搜尋幾場"
+        default: "4"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          IN_DATE: ${{ inputs.date }}
+          IN_REGION: ${{ inputs.region }}
+          IN_GAMES: ${{ inputs.games }}
+        run: python scripts/probe_sources.py --date "$IN_DATE" --region "$IN_REGION" --games "$IN_GAMES"
