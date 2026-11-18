@@ -177,7 +177,83 @@ def section_video() -> None:
             print(f"   {'✅' if ok else '❌'} {pub[:10]} {dur//60:>3}:{dur%60:02d} {dfn} {why:16} {t[:95]}")
 
 
+WTT_CH = "UC9ckyA_A3MfXUa0ttxMoIZw"
+ROUND = {"FNL": "F", "SFNL": "SF", "QFNL": "QF", "8FNL": "R16", "16FNL": "R32", "32FNL": "R64"}
+
+
+def rnd(desc: str) -> str:
+    d = desc.lower()
+    for k, v in (("final - ", "F"), ("semifinal", "SF"), ("quarterfinal", "QF"), ("round of 16", "R16"), ("round of 32", "R32"), ("round of 64", "R64")):
+        if k in d:
+            return v
+    return desc.split(" - ")[1] if " - " in desc else desc
+
+
+def section_cover() -> None:
+    print("\n" + "=" * 70 + "\n== C. 影片覆蓋率（WTT 官方頻道、台灣）\n" + "=" * 70)
+    key = os.environ["YOUTUBE_API_KEY"].strip()
+    hk = {"X-Goog-Api-Key": key}
+    api = lambda p, **q: fetch.get_json(fetch.YT_API + p + "?" + urllib.parse.urlencode(q), hk)  # noqa: E731
+    vids, token = [], ""
+    since = datetime(2026, 10, 26, tzinfo=timezone.utc)
+    for _ in range(20):
+        q = {"part": "snippet", "playlistId": "UU" + WTT_CH[2:], "maxResults": 50}
+        if token:
+            q["pageToken"] = token
+        d = api("playlistItems", **q)
+        stop = False
+        for it in d.get("items", []):
+            pub = datetime.fromisoformat(it["snippet"]["publishedAt"].replace("Z", "+00:00"))
+            if pub < since:
+                stop = True
+                continue
+            vids.append({"id": it["snippet"]["resourceId"]["videoId"], "title": it["snippet"]["title"]})
+        token = d.get("nextPageToken", "")
+        if stop or not token:
+            break
+    print(f"WTT 頻道 {since.date()} 之後共 {len(vids)} 支")
+    for eid, tag in ((3252, "FRANKFURT"), (3250, "MONTPELLIER")):
+        d, info = raw_get(f"{VM}/liveeventsapi/api/cms/GetOfficialResult?EventId={eid}&include_match_card=true&take=1000")
+        rows = []
+        for m in d or []:
+            mc = m.get("match_card") or {}
+            comps = mc.get("competitiors") or []
+            if len(comps) != 2:
+                continue
+            ev = "MS" if "Men" in mc.get("subEventName", "") and "Women" not in mc.get("subEventName", "") else "WS"
+            r = rnd(mc.get("subEventDescription", ""))
+            names = [c["competitiorName"] for c in comps]
+            orgs = [c["competitiorOrg"] for c in comps]
+            keep = r in ("QF", "SF", "F") or any(o in ("JPN", "TPE") for o in orgs) or any(n.upper() == "CHEN YI" for n in names)
+            rows.append((ev, r, names, orgs, keep, mc.get("resultOverallScores")))
+        kept = [x for x in rows if x[4]]
+        cand = [v for v in vids if tag in fetch.norm(v["title"])]
+        hit_ids, miss = [], []
+        for ev, r, names, orgs, keep, sc in kept:
+            fam = [fetch.norm(n.split()[0]) for n in names]
+            hit = [v for v in cand if all(f" {f} " in f" {fetch.norm(v['title'])} " for f in fam) and f" {ev} " in f" {fetch.norm(v['title'])} "]
+            if hit:
+                hit_ids.append(hit[0]["id"])
+            else:
+                miss.append(f"{ev} {r} {names[0]}({orgs[0]}) vs {names[1]}({orgs[1]})")
+        ok = 0
+        for i in range(0, len(hit_ids), 50):
+            dd = api("videos", part="contentDetails,status", id=",".join(hit_ids[i:i + 50]))
+            for it in dd.get("items", []):
+                rr = it["contentDetails"].get("regionRestriction") or {}
+                if it["status"].get("embeddable", True) and not ("allowed" in rr and "TW" not in rr["allowed"]) and "TW" not in rr.get("blocked", []):
+                    ok += 1
+        print(f"\n[{tag}] 單打 {len(rows)} 場，篩選後 {len(kept)} 場（八強前只留 JPN/TPE/陳熠）；頻道內此站影片 {len(cand)} 支")
+        print(f"   找到精華 {len(hit_ids)}/{len(kept)} 場，其中台灣可播 {ok}")
+        for x in miss[:15]:
+            print("   缺：", x)
+        print("   標題範例：", [v["title"][:70] for v in cand[:5]])
+
+
 if __name__ == "__main__":
+    if "cover" in sys.argv[1:]:
+        section_cover()
+        sys.exit(0)
     if "data" in sys.argv[1:] or len(sys.argv) == 1:
         section_data()
     if "video" in sys.argv[1:] or len(sys.argv) == 1:
