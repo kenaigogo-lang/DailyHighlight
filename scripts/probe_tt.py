@@ -89,8 +89,7 @@ def section_data() -> None:
     cal, info = raw_get("https://www.worldtabletennis.com/assets/json/2026_eventcalendar.json")
     rows = [r for blk in cal for r in blk.get("rows", [])] if isinstance(cal, list) else []
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    big = [r for r in rows if any(w in (r.get("EventName") or "") for w in ("Smash", "Champions", "Finals"))
-           and "Youth" not in (r.get("EventName") or "")]
+    big = [r for r in rows if r.get("EventType") in ("WTT Grand Smash", "WTT Champions", "WTT Finals")]
     print(f"行事曆 {info}，共 {len(rows)} 筆，大型賽事 {len(big)} 筆：")
     for r in sorted(big, key=lambda r: r["StartDateTime"]):
         print(f"   {r['EventId']} | {r['StartDateTime'][:10]}~{r['EndDateTime'][:10]} | {r.get('EventType')} | {r['EventName']}")
