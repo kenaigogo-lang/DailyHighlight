@@ -57,55 +57,79 @@ def find_events(obj) -> list[dict]:
     return out
 
 
+def raw_get(url: str):
+    """處理 gzip 壓縮；回傳 (json 或 None, 說明)。"""
+    import gzip, zlib, urllib.request
+    req = urllib.request.Request(url, headers={"User-Agent": fetch.UA, "Accept-Encoding": "gzip", **H})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            body, enc = r.read(), (r.headers.get("Content-Encoding") or "")
+    except Exception as e:  # noqa: BLE001
+        return None, f"ERR {e}"
+    for dec in (lambda b: b, gzip.decompress, zlib.decompress):
+        try:
+            return json.loads(dec(body)), f"ok enc={enc} size={len(body)}"
+        except Exception:  # noqa: BLE001
+            continue
+    return None, f"無法解碼 enc={enc} size={len(body)} head={body[:8]!r}"
+
+
+def walk_dicts(x):
+    if isinstance(x, dict):
+        yield x
+        for v in x.values():
+            yield from walk_dicts(v)
+    elif isinstance(x, list):
+        for v in x:
+            yield from walk_dicts(v)
+
+
 def section_data() -> None:
     print("=" * 70 + "\n== A. 比分資料來源\n" + "=" * 70)
-    y = datetime.now(timezone.utc).year
-    cands = [
-        ("賽事清單(靜態)", f"{FD}/websitestaticapifiles/general/wtt_all_events_only_name.json"),
-        ("年度行事曆", f"https://www.worldtabletennis.com/assets/json/{y}_eventcalendar.json"),
-        ("賽事清單(primary)", f"{VM}/primary/api/cms/GetAllEventsOnlyWithEventName"),
-        ("即將舉行", f"{FD}/websitestaticapifiles/general/wtt_upcoming_only_events_list.json"),
-    ]
-    events = []
-    for label, url in cands:
-        d = show(label, url, 600)
-        if not isinstance(d, str):
-            events += find_events(d)
-    # 找最近的 Smash / Champions / Finals
-    def name(e):
-        for k, v in e.items():
-            if "name" in k.lower() and isinstance(v, str):
-                return v
-        return ""
-    def eid(e):
-        for k in ("EventId", "eventId", "eventID", "Id", "id"):
-            if k in e:
-                return e[k]
-        return None
-    big = [e for e in events if any(w in name(e) for w in ("Smash", "Champions", "Finals"))]
-    seen, uniq = set(), []
-    for e in big:
-        if eid(e) not in seen:
-            seen.add(eid(e))
-            uniq.append(e)
-    print(f"\n大型賽事候選 {len(uniq)} 筆（顯示 id 最大的 12 筆）：")
-    uniq.sort(key=lambda e: int(eid(e)) if str(eid(e)).isdigit() else 0, reverse=True)
-    for e in uniq[:12]:
-        print("   ", eid(e), "|", name(e), "|", {k: v for k, v in e.items() if "date" in k.lower() or "start" in k.lower()})
-
-    # 對近期幾站試抓成績
-    for e in uniq[:6]:
-        i = eid(e)
-        print(f"\n### 試抓成績 EventId={i} {name(e)}")
+    cal, info = raw_get("https://www.worldtabletennis.com/assets/json/2026_eventcalendar.json")
+    rows = [r for blk in cal for r in blk.get("rows", [])] if isinstance(cal, list) else []
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    big = [r for r in rows if any(w in (r.get("EventName") or "") for w in ("Smash", "Champions", "Finals"))
+           and "Youth" not in (r.get("EventName") or "")]
+    print(f"行事曆 {info}，共 {len(rows)} 筆，大型賽事 {len(big)} 筆：")
+    for r in sorted(big, key=lambda r: r["StartDateTime"]):
+        print(f"   {r['EventId']} | {r['StartDateTime'][:10]}~{r['EndDateTime'][:10]} | {r.get('EventType')} | {r['EventName']}")
+    done = [r for r in big if datetime.fromisoformat(r["EndDateTime"]) < now]
+    done.sort(key=lambda r: r["EndDateTime"], reverse=True)
+    for r in done[:2]:
+        i = r["EventId"]
+        print(f"\n### 已結束：{i} {r['EventName']}")
+        best = None
         for label, url in [
-            ("OfficialResult(vm)", f"{VM}/liveeventsapi/api/cms/GetOfficialResult?EventId={i}&include_match_card=false&take=5"),
-            ("OfficialResult(live)", f"{LIVE}/api/cms/GetOfficialResult?EventId={i}&include_match_card=false&take=5"),
-            ("EventSchedule(vm)", f"{VM}/liveeventsapi/api/cms/GetEventSchedule?EventId={i}"),
-            ("archived", f"{FD}/websitearchivedresults/{i}/official_result.json"),
+            ("archived officialresult", f"{FD}/websitearchivedresults/{i}/officialresult/officialresult.json"),
+            ("live(vm) match_card", f"{VM}/liveeventsapi/api/cms/GetOfficialResult?EventId={i}&include_match_card=true&take=1000"),
+            ("live(eastasia)", f"https://wtt-website-live-events-api-prod-cmfzgabgbzhphabb.eastasia-01.azurewebsites.net/api/cms/GetOfficialResult?EventId={i}&include_match_card=true&take=1000"),
+            ("static take10", f"{FD}/websitestaticapifiles/{i}/{i}_take_10_official_results.json"),
         ]:
-            d = show(label, url, 1500)
-            if not isinstance(d, str) and d:
-                break
+            d, info = raw_get(url)
+            n = len(d) if isinstance(d, list) else (1 if d else 0)
+            print(f"   {label:24} {info}  筆數={n}")
+            if d and best is None:
+                best = d
+        if not best:
+            continue
+        items = best if isinstance(best, list) else [best]
+        print("   第一筆 keys:", list(items[0].keys())[:40] if isinstance(items[0], dict) else type(items[0]))
+        print("   第一筆內容:", json.dumps(items[0], ensure_ascii=False)[:2500])
+        subs, rounds, orgs = Counter(), Counter(), Counter()
+        for dct in walk_dicts(items):
+            for k, v in dct.items():
+                kl = k.lower()
+                if isinstance(v, str) and len(v) < 40:
+                    if kl in ("subeventname", "subeventtype", "subeventdescription"):
+                        subs[v] += 1
+                    elif "round" in kl or kl in ("phase", "stagename"):
+                        rounds[v] += 1
+                    elif kl in ("organisationcode", "orgcode", "countrycode", "nationality", "organizationcode"):
+                        orgs[v] += 1
+        print("   項目:", subs.most_common(12))
+        print("   輪次:", rounds.most_common(15))
+        print("   國籍(前15):", orgs.most_common(15))
 
 
 def section_video() -> None:
