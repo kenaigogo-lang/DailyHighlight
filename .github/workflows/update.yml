@@ -2,10 +2,10 @@ name: 更新每日精華
 
 on:
   schedule:
-    # GitHub 的排程常常延遲好幾小時、甚至整次跳過，所以多排幾個時段當保險。
-    # 已經完整的日期會直接略過，多跑幾次幾乎不花資源。
-    # 台灣時間 13:17～23:17 每小時一次（UTC 05:17～15:17）
-    - cron: "17 5-15 * * *"
+    # NBA ＋ 桌球一起更新。桌球賽事進行中官方只提供「最新 10 場」，要頻繁輪詢，
+    # 所以全天每 20 分鐘一次；已完整的日期／賽事會直接略過，沒事做時幾秒就結束。
+    # GitHub 排程常延遲或跳過，建議另外用 cron-job.org 每 20 分鐘觸發這個流程。
+    - cron: "7,27,47 * * * *"
   workflow_dispatch:
     inputs:
       date:
@@ -34,7 +34,9 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: 抓資料
+      - run: pip install brotli
+
+      - name: 抓 NBA 資料
         id: fetch
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
@@ -46,6 +48,16 @@ jobs:
           if [ "$IN_FORCE" = "true" ]; then args+=(--force); fi
           set +e
           python scripts/fetch.py "${args[@]}"
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: 抓桌球資料
+        id: fetch_tt
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          TT_FORCE_VIDEO: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
+        run: |
+          set +e
+          python scripts/fetch_tt.py
           echo "code=$?" >> "$GITHUB_OUTPUT"
 
       - name: 提交資料
@@ -61,8 +73,8 @@ jobs:
             git push
           fi
 
-      - name: YouTube 查詢失敗時標成失敗
-        if: steps.fetch.outputs.code != '0'
+      - name: 有錯誤時標成失敗
+        if: steps.fetch.outputs.code != '0' || steps.fetch_tt.outputs.code != '0'
         run: |
-          echo "::error::抓資料時發生錯誤（多半是 YouTube API 金鑰或額度問題），請看上方「抓資料」步驟的紀錄"
+          echo "::error::抓資料時發生錯誤（NBA=${{ steps.fetch.outputs.code }}、桌球=${{ steps.fetch_tt.outputs.code }}），請看上方步驟的紀錄"
           exit 1

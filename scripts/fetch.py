@@ -376,6 +376,9 @@ def main() -> int:
 
     for d, day, _ in todo:
         day["complete"] = is_complete(day)
+        prev = load_day(d)
+        if prev and {k: v for k, v in prev.items() if k != "updated"} == day:
+            continue  # 內容沒變就不寫（排程每 20 分鐘跑，避免無意義的 commit）
         day["updated"] = now.isoformat(timespec="seconds")
         (DATA_DIR / f"{d.isoformat()}.json").write_text(
             json.dumps(day, ensure_ascii=False, separators=(",", ":")))
