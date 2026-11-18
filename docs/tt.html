@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>桌球精華</title>
+<meta name="description" content="WTT 與國際大賽桌球精華，依輪次解鎖、依精彩程度排序，不暴雷。">
+<meta name="theme-color" content="#0f1115">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏓</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:ital,wght@0,600;1,700;1,800&family=Bebas+Neue&family=Noto+Sans+TC:wght@400;700;900&family=Noto+Serif+TC:wght@700;900&display=swap" rel="stylesheet">
+<script>
+  // 隨機挑一種風格（C 復古票根 / D 球衣撞色 / E 電視轉播），網址 ?skin=C 可指定
+  (function () {
+    // 同一次瀏覽中切換分頁時沿用同一種風格
+    var S = ["C", "D", "E"], q = new URLSearchParams(location.search).get("skin"), k = null;
+    try { k = sessionStorage.getItem("skin"); } catch (e) {}
+    var s = S.indexOf(q) >= 0 ? q : S.indexOf(k) >= 0 ? k : S[Math.floor(Math.random() * S.length)];
+    document.documentElement.dataset.skin = s;
+    try { sessionStorage.setItem("skin", s); } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="skins.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="titlebar">
+      <h1><span class="h1a">桌球</span><span class="h1b">精華</span></h1>
+      <button class="skin-btn" id="skin-btn" type="button" title="換一種風格">🎲 換風格</button>
+    </div>
+    <nav class="tabs" aria-label="運動"><a class="tab" href="./">🏀 NBA</a><a class="tab" href="tt.html" aria-current="page">🏓 桌球</a></nav>
+    <nav class="dates" id="events" aria-label="選擇賽事"></nav>
+    <p class="summary"><span id="summary"></span>
+      <a class="refresh" href="https://github.com/kenaigogo-lang/DailyHighlight/actions/workflows/update_tt.yml" target="_blank" rel="noopener" title="到 GitHub 按 Run workflow，約 1 分鐘後重新整理本頁">🔄 手動更新</a></p>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="dates evtabs" id="evtabs" aria-label="男單／女單"></nav>
+  <p class="hint">每一輪依精彩程度排序；八強前只收日本、台灣選手和陳熠的比賽。下一輪要按「解鎖」才會出現，避免提前知道誰晉級。</p>
+  <div id="rounds"></div>
+  <p class="empty" id="empty" hidden></p>
+</main>
+
+<footer class="wrap foot">
+  影片來源：World Table Tennis 官方 YouTube（只選台灣可播放的影片）· 成績：WTT<br>
+  收錄：WTT 大滿貫、冠軍賽、球星挑戰賽、總決賽，世界盃、世錦賽、奧運、亞運、亞錦賽（男女單打、32 強起）
+</footer>
+
+<template id="tpl-match">
+  <li class="game">
+    <span class="stub"></span>
+    <div class="row">
+      <span class="rank"></span>
+      <div class="teams">
+        <div class="team away"><img alt="" loading="lazy"><span class="name"></span></div>
+        <span class="at">vs</span>
+        <div class="team home"><img alt="" loading="lazy"><span class="name"></span></div>
+      </div>
+    </div>
+    <div class="meta"><span class="time"></span><span class="tag"></span></div>
+    <div class="actions">
+      <button class="btn primary play" type="button">▶ 看精華</button>
+      <span class="status"></span>
+      <button class="btn ghost box" type="button">⚠️ 查看比分</button>
+    </div>
+    <div class="player" hidden>
+      <div class="frame">
+        <div class="yt"></div>
+        <div class="cover">
+          <button class="cover-btn" type="button">▶</button>
+          <span class="cover-text"></span>
+        </div>
+      </div>
+      <button class="btn sound" type="button" hidden></button>
+      <div class="controls">
+        <button class="btn small back30" type="button">⏪ 30 秒</button>
+        <button class="btn small fs" type="button">⛶ 全螢幕</button>
+        <button class="btn small close" type="button">✕ 關閉</button>
+      </div>
+    </div>
+    <div class="boxscore" hidden></div>
+  </li>
+</template>
+
+<script src="common.js"></script>
+<script src="tt.js"></script>
+</body>
+</html>

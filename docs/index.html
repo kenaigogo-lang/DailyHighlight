@@ -13,8 +13,12 @@
 <script>
   // 隨機挑一種風格（C 復古票根 / D 球衣撞色 / E 電視轉播），網址 ?skin=C 可指定
   (function () {
-    var S = ["C", "D", "E"], q = new URLSearchParams(location.search).get("skin");
-    document.documentElement.dataset.skin = S.indexOf(q) >= 0 ? q : S[Math.floor(Math.random() * S.length)];
+    // 同一次瀏覽中切換分頁時沿用同一種風格
+    var S = ["C", "D", "E"], q = new URLSearchParams(location.search).get("skin"), k = null;
+    try { k = sessionStorage.getItem("skin"); } catch (e) {}
+    var s = S.indexOf(q) >= 0 ? q : S.indexOf(k) >= 0 ? k : S[Math.floor(Math.random() * S.length)];
+    document.documentElement.dataset.skin = s;
+    try { sessionStorage.setItem("skin", s); } catch (e) {}
   })();
 </script>
 <link rel="stylesheet" href="style.css">
@@ -27,6 +31,7 @@
       <h1><span class="h1a">NBA</span><span class="h1b">每日精華</span></h1>
       <button class="skin-btn" id="skin-btn" type="button" title="換一種風格">🎲 換風格</button>
     </div>
+    <nav class="tabs" aria-label="運動"><a class="tab" href="./" aria-current="page">🏀 NBA</a><a class="tab" href="tt.html">🏓 桌球</a></nav>
     <nav class="dates" id="dates" aria-label="選擇日期"></nav>
     <p class="summary"><span id="summary"></span>
       <a class="refresh" href="https://github.com/kenaigogo-lang/DailyHighlight/actions/workflows/update.yml" target="_blank" rel="noopener" title="到 GitHub 按 Run workflow，約 1 分鐘後重新整理本頁">🔄 手動更新</a></p>
@@ -82,6 +87,7 @@
   </li>
 </template>
 
+<script src="common.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

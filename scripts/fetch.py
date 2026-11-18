@@ -195,12 +195,12 @@ def iso_duration_seconds(s: str) -> int:
     return d * 86400 + h * 3600 + mi * 60 + se
 
 
-def yt_uploads(key: str, channel_id: str, since: datetime) -> list[dict]:
+def yt_uploads(key: str, channel_id: str, since: datetime, max_pages: int = 0) -> list[dict]:
     """翻某頻道的上傳清單，直到早於 since。"""
     headers = {"X-Goog-Api-Key": key}
     playlist = "UU" + channel_id[2:]
     videos, token = [], ""
-    for _ in range(YT_MAX_PAGES):
+    for _ in range(max_pages or YT_MAX_PAGES):
         q = {"part": "snippet", "playlistId": playlist, "maxResults": 50}
         if token:
             q["pageToken"] = token

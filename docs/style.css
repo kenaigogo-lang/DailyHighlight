@@ -73,7 +73,7 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .02em; display: flex; gap: 6px;
 .empty { color: var(--muted); text-align: center; padding: 40px 0; }
 
 /* ---------- game card ---------- */
-.games { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.games { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .game {
   position: relative;
   background: var(--surface); border: 1px solid var(--border);
@@ -162,3 +162,17 @@ td.pts { font-weight: 700; }
   .team .name { font-size: 15px; }
   .meta { margin-left: 0; }
 }
+
+/* ---------- 分頁（NBA／桌球） ---------- */
+.tabs { display: flex; gap: 6px; padding-bottom: 8px; }
+.tab { text-decoration: none; color: var(--muted); font-weight: 700; font-size: 15px; padding: 4px 12px; border-radius: 8px; border: 1px solid transparent; }
+.tab[aria-current="page"] { color: var(--text); border-color: var(--border); background: var(--surface); }
+
+/* ---------- 桌球：輪次 ---------- */
+.evtabs { margin-top: 14px; padding-bottom: 0; }
+.round { margin: 18px 0 8px; }
+.round-title { font-size: 18px; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+.round.locked .round-title { color: var(--muted); }
+.lock-note { color: var(--muted); font-size: 14px; margin: 0; }
+.btn.unlock { width: 100%; padding: 12px; font-weight: 700; border-style: dashed; }
+.team img.flagimg { width: 34px; height: 24px; object-fit: cover; border-radius: 3px; box-shadow: 0 0 0 1px rgba(0,0,0,.15); }

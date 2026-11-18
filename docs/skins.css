@@ -139,3 +139,6 @@
 [data-skin="E"] .cover-btn { background: var(--accent); color: #fff; }
 [data-skin="E"] .boxscore { border-top: 2px solid #0d2a6b; }
 [data-skin="E"] .hint, [data-skin="E"] .foot { color: var(--muted); }
+
+/* 桌球：國旗維持長方形 */
+[data-skin="D"] .team img.flagimg { background: transparent; border-radius: 3px; padding: 0; }

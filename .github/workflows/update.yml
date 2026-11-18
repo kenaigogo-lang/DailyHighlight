@@ -57,6 +57,7 @@ jobs:
             echo "資料沒有變化"
           else
             git commit -m "data: 更新 $(date -u +%Y-%m-%dT%H:%MZ)"
+            git pull --rebase
             git push
           fi
 
