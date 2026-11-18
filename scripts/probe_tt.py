@@ -250,7 +250,50 @@ def section_cover() -> None:
         print("   標題範例：", [v["title"][:70] for v in cand[:5]])
 
 
+def section_plain() -> None:
+    """不帶 Referer/Origin（不偽裝成官網），只用一般 User-Agent，看哪些來源能用。"""
+    import gzip, urllib.request
+    try:
+        import brotli  # type: ignore
+    except ImportError:
+        brotli = None
+    print("\n" + "=" * 70 + "\n== D. 不偽裝來源的請求\n" + "=" * 70)
+    for i in (3252,):
+        for label, url in [
+            ("archived officialresult", f"{FD}/websitearchivedresults/{i}/officialresult/officialresult.json"),
+            ("static take10", f"{FD}/websitestaticapifiles/{i}/{i}_take_10_official_results.json"),
+            ("live(vm)", f"{VM}/liveeventsapi/api/cms/GetOfficialResult?EventId={i}&include_match_card=true&take=1000"),
+            ("live(eastasia)", f"https://wtt-website-live-events-api-prod-cmfzgabgbzhphabb.eastasia-01.azurewebsites.net/api/cms/GetOfficialResult?EventId={i}&include_match_card=true&take=1000"),
+            ("ittf results", "https://results.ittf.link/"),
+        ]:
+            req = urllib.request.Request(url, headers={"User-Agent": fetch.UA, "Accept-Encoding": "gzip, br"})
+            try:
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    body, enc, code = r.read(), r.headers.get("Content-Encoding") or "", r.status
+            except Exception as e:  # noqa: BLE001
+                print(f"   {label:24} ERR {e}")
+                continue
+            try:
+                if enc == "br" and brotli:
+                    body = brotli.decompress(body)
+                elif enc == "gzip":
+                    body = gzip.decompress(body)
+                d = json.loads(body)
+                n = len(d) if isinstance(d, list) else 1
+                cards = sum(1 for x in walk_dicts(d) if "competitiors" in x)
+                print(f"   {label:24} {code} enc={enc} JSON 筆數={n} match_card={cards}")
+                if cards:
+                    first = next(x for x in walk_dicts(d) if "competitiors" in x)
+                    print("      例：", first.get("subEventDescription"), first.get("gameScores"),
+                          [(c["competitiorName"], c["competitiorOrg"]) for c in first["competitiors"]])
+            except Exception:  # noqa: BLE001
+                print(f"   {label:24} {code} enc={enc} 非 JSON，size={len(body)} 開頭={body[:80]!r}")
+
+
 if __name__ == "__main__":
+    if "plain" in sys.argv[1:]:
+        section_plain()
+        sys.exit(0)
     if "cover" in sys.argv[1:]:
         section_cover()
         sys.exit(0)
