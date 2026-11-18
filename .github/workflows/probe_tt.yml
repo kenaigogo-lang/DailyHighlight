@@ -1,0 +1,25 @@
+name: 探測桌球資料與影片
+
+on:
+  workflow_dispatch:
+    inputs:
+      parts:
+        description: "data / video / 留空＝兩者"
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          IN_PARTS: ${{ inputs.parts }}
+        run: python scripts/probe_tt.py $IN_PARTS
