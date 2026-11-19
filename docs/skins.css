@@ -142,3 +142,9 @@
 
 /* 桌球：國旗維持長方形 */
 [data-skin="D"] .team img.flagimg { background: transparent; border-radius: 3px; padding: 0; }
+
+/* 攀登／張博雅卡片：C 主題票根寫日期、D 主題不用浮水印號碼 */
+[data-skin="C"] .event .stub { font-size: 20px; }
+[data-skin="D"] .event .ev-name, [data-skin="D"] .event .ev-sub, [data-skin="D"] .event .meta { color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,.35); }
+[data-skin="E"] .event .ev-name { font-weight: 900; }
+[data-skin="C"] .items .btn.primary { font-size: 17px; padding: 4px 12px; }

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>張博雅比賽影片</title>
+<meta name="description" content="台灣跨欄選手張博雅的國內外比賽影片，依比賽整理，不暴雷。">
+<meta name="theme-color" content="#0f1115">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏃</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:ital,wght@0,600;1,700;1,800&family=Bebas+Neue&family=Noto+Sans+TC:wght@400;700;900&family=Noto+Serif+TC:wght@700;900&display=swap" rel="stylesheet">
+<script>
+  // 隨機挑一種風格（C 復古票根 / D 球衣撞色 / E 電視轉播），網址 ?skin=C 可指定
+  (function () {
+    // 同一次瀏覽中切換分頁時沿用同一種風格
+    var S = ["C", "D", "E"], q = new URLSearchParams(location.search).get("skin"), k = null;
+    try { k = sessionStorage.getItem("skin"); } catch (e) {}
+    var s = S.indexOf(q) >= 0 ? q : S.indexOf(k) >= 0 ? k : S[Math.floor(Math.random() * S.length)];
+    document.documentElement.dataset.skin = s;
+    try { sessionStorage.setItem("skin", s); } catch (e) {}
+  })();
+</script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="skins.css">
+</head>
+<body data-src="data/zby.json" data-a="#1f3a93" data-h="#c8102e">
+<header class="top">
+  <div class="wrap">
+    <div class="titlebar">
+      <h1><span class="h1a">張博雅</span><span class="h1b">比賽影片</span></h1>
+      <button class="skin-btn" id="skin-btn" type="button" title="換一種風格">🎲 換風格</button>
+    </div>
+    <nav class="tabs" aria-label="運動"><a class="tab" href="./">🏀 NBA</a><a class="tab" href="tt.html">🏓 桌球</a><a class="tab" href="climb.html">🧗 攀登</a><a class="tab" href="zby.html" aria-current="page">🏃 張博雅</a></nav>
+        <p class="summary"><span id="summary"></span>
+      <a class="refresh" href="https://github.com/kenaigogo-lang/DailyHighlight/actions/workflows/update_daily.yml" target="_blank" rel="noopener" title="到 GitHub 按 Run workflow，約 1 分鐘後重新整理本頁">🔄 手動更新</a></p>
+  </div>
+</header>
+
+<main class="wrap">
+  <p class="hint">依比賽整理她的各項目、各輪次影片（不顯示影片標題，避免看到成績）。「↻」可以換同一輪的其他影片；訪問通常會講到成績，點之前會再確認。</p>
+  <ol class="games" id="games"></ol>
+  <p class="empty" id="empty" hidden></p>
+</main>
+
+<footer class="wrap foot">
+  影片來源：YouTube 搜尋（愛爾達、GAGADAN、Sport.taiwan 等，只選台灣可播放的影片）<br>每天台灣時間 00:37、12:37 自動搜尋；分類是自動判斷，可能偶爾配錯
+</footer>
+
+<template id="tpl-event">
+  <li class="game event">
+    <span class="stub"></span>
+    <div class="row">
+      <div class="ev-head"><span class="ev-name"></span><small class="ev-sub"></small></div>
+    </div>
+    <div class="meta"><span class="time"></span></div>
+    <div class="actions items"></div>
+    <div class="player" hidden>
+      <div class="frame">
+        <div class="yt"></div>
+        <div class="cover">
+          <button class="cover-btn" type="button">▶</button>
+          <span class="cover-text"></span>
+        </div>
+      </div>
+      <button class="btn sound" type="button" hidden></button>
+      <div class="controls">
+        <button class="btn small back30" type="button">⏪ 30 秒</button>
+        <button class="btn small fromstart" type="button">從這段開頭</button>
+        <button class="btn small fs" type="button">⛶ 全螢幕</button>
+        <button class="btn small close" type="button">✕ 關閉</button>
+      </div>
+    </div>
+  </li>
+</template>
+
+<script src="common.js"></script>
+<script src="list.js"></script>
+</body>
+</html>

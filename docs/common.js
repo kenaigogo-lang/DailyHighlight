@@ -58,7 +58,7 @@ async function openPlayer(li, video, opts = {}) {
   const cover = $(".cover", wrap);
   const coverBtn = $(".cover-btn", wrap);
   const coverText = $(".cover-text", wrap);
-  const playBtn = $(".play", li);
+  const playBtn = opts.button || $(".play", li) || document.createElement("button");
   wrap.hidden = false;
   playBtn.disabled = true;
 
@@ -80,7 +80,7 @@ async function openPlayer(li, video, opts = {}) {
       a.rel = "noopener";
       cover.append(a);
     }
-    const t = Math.floor((video.duration || 0) * ratio * (video.half ? 0 : 1));
+    const t = video.start || Math.floor((video.duration || 0) * ratio * (video.half ? 0 : 1));
     a.href = `https://www.youtube.com/watch?v=${encodeURIComponent(video.id)}${t ? `&t=${t}s` : ""}`;
     a.textContent = "改到 YouTube 看（注意：那邊可能出現其他影片的標題）";
   };
@@ -101,7 +101,9 @@ async function openPlayer(li, video, opts = {}) {
   const canOwnFullscreen = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
   let duration = video.duration || 0;
   // ratio = 從影片的幾 % 開始播（NBA 0.8、桌球 0）；video.half = 影片本身只有下半場
-  const halfAt = () => (video.half ? 0 : Math.floor((duration || 0) * ratio));
+  // video.start / video.end：只播影片中的一段（例如攀登精華集裡的女子決賽章節）
+  const segStart = video.start || 0;
+  const halfAt = () => (video.half ? 0 : ratio ? Math.floor((duration || 0) * ratio) : segStart);
   const fromZero = video.half || !ratio;
   // 不是每一頁都有這些按鈕（桌球頁沒有「從頭看／後段」），找不到就略過
   const opt = (sel) => $(sel, wrap) || { set hidden(v) {}, set onclick(f) {}, set textContent(v) {} };
@@ -137,7 +139,7 @@ async function openPlayer(li, video, opts = {}) {
     playerVars: {
       autoplay: 1, playsinline: 1, rel: 0, iv_load_policy: 3,
       modestbranding: 1, fs: canOwnFullscreen ? 0 : 1,
-      start: fromZero || !duration ? 0 : halfAt(),
+      start: fromZero || !duration ? segStart : halfAt(),
     },
     events: {
       onReady: () => {
@@ -184,10 +186,11 @@ async function openPlayer(li, video, opts = {}) {
     if (!sound.hidden && player.isMuted && !player.isMuted()) sound.hidden = true;
     if (!player.getCurrentTime || !duration) return;
     const t = player.getCurrentTime();
-    if (!stoppedAtEnd && t >= duration - STOP_BEFORE_END && player.getPlayerState() === YT.PlayerState.PLAYING) {
+    const stopAt = video.end && video.end < duration ? video.end : duration - STOP_BEFORE_END;
+    if (!stoppedAtEnd && t >= stopAt && player.getPlayerState() === YT.PlayerState.PLAYING) {
       stoppedAtEnd = true;
       player.pauseVideo();
-      showCover("播完了");
+      showCover(video.end ? "這一段播完了" : "播完了");
     }
   }, 250);
 
@@ -206,7 +209,7 @@ async function openPlayer(li, video, opts = {}) {
   };
   opt(".back30").onclick = () => seek(player.getCurrentTime() - 30);
   opt(".half").onclick = () => seek(halfAt());
-  opt(".fromstart").onclick = () => seek(0);
+  opt(".fromstart").onclick = () => seek(segStart);
   const fsBtn = opt(".fs");
   fsBtn.hidden = !canOwnFullscreen;
   fsBtn.onclick = () => {
