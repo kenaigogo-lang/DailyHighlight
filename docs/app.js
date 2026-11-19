@@ -1,7 +1,7 @@
 "use strict";
 
 // ---------------------------------------------------------------- 設定
-const SECOND_HALF_RATIO = 0.5;   // 從影片的幾 % 開始播
+const SECOND_HALF_RATIO = 0.8;   // 從影片的幾 % 開始播（大約第四節）
 const DATES_SHOWN = 7;
 
 const TEAM_ZH = {

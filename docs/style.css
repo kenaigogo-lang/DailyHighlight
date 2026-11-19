@@ -176,3 +176,5 @@ td.pts { font-weight: 700; }
 .lock-note { color: var(--muted); font-size: 14px; margin: 0; }
 .btn.unlock { width: 100%; padding: 12px; font-weight: 700; border-style: dashed; }
 .team img.flagimg { width: 34px; height: 24px; object-fit: cover; border-radius: 3px; box-shadow: 0 0 0 1px rgba(0,0,0,.15); }
+
+.cover-link { color: #fff; font-size: 14px; text-decoration: underline; padding: 6px 16px; text-align: center; }

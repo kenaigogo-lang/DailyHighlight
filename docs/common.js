@@ -69,7 +69,30 @@ async function openPlayer(li, video, opts = {}) {
   };
   showCover("載入中…", false);
 
-  await loadYT();
+  // 失敗時的出路：提供到 YouTube 觀看的連結（那邊可能看到其他影片標題，所以先提醒）
+  const showFail = (msg) => {
+    showCover(msg, false);
+    let a = $(".cover-link", cover);
+    if (!a) {
+      a = document.createElement("a");
+      a.className = "cover-link";
+      a.target = "_blank";
+      a.rel = "noopener";
+      cover.append(a);
+    }
+    const t = Math.floor((video.duration || 0) * ratio * (video.half ? 0 : 1));
+    a.href = `https://www.youtube.com/watch?v=${encodeURIComponent(video.id)}${t ? `&t=${t}s` : ""}`;
+    a.textContent = "改到 YouTube 看（注意：那邊可能出現其他影片的標題）";
+  };
+
+  try {
+    await Promise.race([loadYT(), new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 12000))]);
+  } catch {
+    ytReady = null;  // 下次再試
+    showFail("YouTube 播放器載入失敗，可能是網路問題");
+    playBtn.disabled = false;
+    return;
+  }
   const ytEl = document.createElement("div");
   $(".yt", wrap).replaceWith(ytEl);
   ytEl.className = "yt";
@@ -77,14 +100,17 @@ async function openPlayer(li, video, opts = {}) {
   // iPhone 不支援把一般元素全螢幕，這時改用 YouTube 播放器自己的全螢幕鈕
   const canOwnFullscreen = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
   let duration = video.duration || 0;
-  // ratio = 從影片的幾 % 開始播（NBA 0.5、桌球 0）；video.half = 影片本身只有下半場
+  // ratio = 從影片的幾 % 開始播（NBA 0.8、桌球 0）；video.half = 影片本身只有下半場
   const halfAt = () => (video.half ? 0 : Math.floor((duration || 0) * ratio));
   const fromZero = video.half || !ratio;
-  $(".fromstart", wrap).hidden = fromZero;
-  if ($(".half", wrap)) $(".half", wrap).hidden = fromZero;
+  // 不是每一頁都有這些按鈕（桌球頁沒有「從頭看／後段」），找不到就略過
+  const opt = (sel) => $(sel, wrap) || { set hidden(v) {}, set onclick(f) {}, set textContent(v) {} };
+  opt(".fromstart").hidden = fromZero;
+  opt(".half").hidden = fromZero;
   let timer = null;
   let stoppedAtEnd = false;
   let started = false;
+  let ready = false;
 
   const sound = $(".sound", wrap);
   sound.hidden = true;
@@ -115,6 +141,7 @@ async function openPlayer(li, video, opts = {}) {
     },
     events: {
       onReady: () => {
+        ready = true;
         if (!duration) {
           duration = player.getDuration() || 0;
           if (duration && !fromZero) player.seekTo(halfAt(), true);
@@ -142,8 +169,15 @@ async function openPlayer(li, video, opts = {}) {
           showCover("播完了");
         }
       },
+      onError: (e) => {
+        const why = { 2: "影片編號錯誤", 5: "這個瀏覽器無法播放", 100: "影片已被移除或設為私人",
+          101: "影片擁有者不允許嵌入播放", 150: "影片擁有者不允許嵌入播放" }[e.data] || `錯誤代碼 ${e.data}`;
+        showFail(`這支影片無法在這裡播放：${why}`);
+      },
     },
   });
+  // 播放器 15 秒內都沒準備好，就給出路，不要一直卡在「載入中」
+  setTimeout(() => { if (!ready && !started && !wrap.hidden) showFail("影片一直載入不出來"); }, 15000);
 
   // 結尾前自動停止，片尾推薦就不會出現
   timer = setInterval(() => {
@@ -170,10 +204,10 @@ async function openPlayer(li, video, opts = {}) {
       if (player.getPlayerState() !== YT.PlayerState.PLAYING) cover.hidden = true;
     }, 1000);
   };
-  $(".back30", wrap).onclick = () => seek(player.getCurrentTime() - 30);
-  if ($(".half", wrap)) $(".half", wrap).onclick = () => seek(halfAt());
-  $(".fromstart", wrap).onclick = () => seek(0);
-  const fsBtn = $(".fs", wrap);
+  opt(".back30").onclick = () => seek(player.getCurrentTime() - 30);
+  opt(".half").onclick = () => seek(halfAt());
+  opt(".fromstart").onclick = () => seek(0);
+  const fsBtn = opt(".fs");
   fsBtn.hidden = !canOwnFullscreen;
   fsBtn.onclick = () => {
     if (document.fullscreenElement || document.webkitFullscreenElement) {
