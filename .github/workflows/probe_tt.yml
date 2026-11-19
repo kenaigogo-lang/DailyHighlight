@@ -1,10 +1,10 @@
-name: 探測桌球資料與影片
+name: 探測桌球／攀登／田徑
 
 on:
   workflow_dispatch:
     inputs:
       parts:
-        description: "data / video / 留空＝兩者"
+        description: "桌球：data / video / cover / plain；攀登與田徑：more climb / more athlete"
         default: ""
 
 permissions:
@@ -23,4 +23,6 @@ jobs:
       - env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           IN_PARTS: ${{ inputs.parts }}
-        run: python scripts/probe_tt.py $IN_PARTS
+        run: |
+          set -- $IN_PARTS
+          if [ "$1" = "more" ]; then shift; python scripts/probe_more.py "$@"; else python scripts/probe_tt.py "$@"; fi
