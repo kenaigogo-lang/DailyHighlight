@@ -1,0 +1,54 @@
+name: 每日更新（張博雅、攀登）
+
+on:
+  schedule:
+    # 張博雅用 YouTube 搜尋（每次 100 單位額度），攀登是週末賽事、精華隔天內上架，一天兩次就夠
+    # 台灣時間 00:37、12:37
+    - cron: "37 16 * * *"
+    - cron: "37 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 收集 YouTube 影片
+        id: collect
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: |
+          set +e
+          python scripts/collect_daily.py
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+      - name: 整理成網頁資料
+        run: |
+          if [ -f scripts/build_daily.py ]; then python scripts/build_daily.py; fi
+      - name: 提交資料
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data docs/data
+          if git diff --cached --quiet; then
+            echo "資料沒有變化"
+          else
+            git commit -m "daily data: 更新 $(date -u +%Y-%m-%dT%H:%MZ)"
+            git pull --rebase
+            git push
+          fi
+      - name: 有錯誤時標成失敗
+        if: steps.collect.outputs.code != '0'
+        run: |
+          echo "::error::收集影片時發生錯誤，請看上方紀錄"
+          exit 1
