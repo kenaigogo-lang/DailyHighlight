@@ -131,7 +131,8 @@ function renderGame(g, rank) {
     const t = g[side];
     const el = $(`.team.${side}`, li);
     $("img", el).src = logo(t.abbr);
-    $(".name", el).innerHTML = `${zh(t)}<small>${t.name}</small>`;
+    const rec = t.record ? `<span class="rec" title="賽前戰績">${esc(t.record)}</span>` : "";
+    $(".name", el).innerHTML = `<span class="name-line"><span class="zh">${esc(zh(t))}</span>${rec}</span><small>${esc(t.name)}</small>`;
   }
   $(".time", li).textContent = fmtTipoff(g.start);
   $(".tag", li).textContent = g.note || "";
@@ -213,5 +214,197 @@ function boxHTML(g) {
 }
 
 
+
+// ---------------------------------------------------------------- 東西區排名表（即時抓 ESPN，失敗退回 standings.json）
+const ESPN_STANDINGS_URL = "https://site.api.espn.com/apis/v2/sports/basketball/nba/standings";
+const STANDINGS_TTL = 60_000;
+let standingsCache = null;
+let standingsFetchedAt = 0;
+let activeConf = "east";
+
+function parseESPNStandings(raw) {
+  const confs = {};
+  for (const ch of raw.children || []) {
+    const label = String(ch.abbreviation || ch.name || "").toLowerCase();
+    const key = label.includes("east") ? "east" : label.includes("west") ? "west" : label;
+    const entries = ch.standings?.entries || [];
+    const rows = entries.map((e) => {
+      const team = e.team || {};
+      const sd = {};
+      const sv = {};
+      for (const s of e.stats || []) {
+        sd[s.name] = s.displayValue ?? "";
+        sv[s.name] = s.value;
+      }
+      const seed = Number(sv.playoffSeed) || 99;
+      const w = sd.wins ?? "", l = sd.losses ?? "";
+      return {
+        seed,
+        abbr: team.abbreviation || "",
+        name: team.shortDisplayName || team.name || "",
+        wl: sd.overall || (w !== "" && l !== "" ? `${w}-${l}` : ""),
+        pct: sd.winPercent || "",
+        gb: sd.gamesBehind || "-",
+        l10: sd["Last Ten Games"] || "",
+        strk: sd.streak || "",
+        _pct: Number(sv.winPercent) || 0,
+      };
+    });
+    rows.sort((a, b) => a.seed - b.seed || b._pct - a._pct);
+    rows.forEach((r, i) => {
+      if (r.seed === 99) r.seed = i + 1;
+      delete r._pct;
+    });
+    confs[key] = rows;
+  }
+  return { east: confs.east || [], west: confs.west || [], updated: new Date().toISOString(), live: true };
+}
+
+async function fetchLiveESPN() {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 4500);
+  try {
+    const r = await fetch(`${ESPN_STANDINGS_URL}?t=${Date.now()}`, { cache: "no-store", signal: ctrl.signal });
+    if (!r.ok) throw new Error(String(r.status));
+    const parsed = parseESPNStandings(await r.json());
+    if (parsed.east.length && parsed.west.length) return parsed;
+  } finally {
+    clearTimeout(timer);
+  }
+  throw new Error("empty");
+}
+
+function fmtStreakHTML(s) {
+  const m = /^([WL])(\d+)$/i.exec(String(s || "").trim());
+  if (!m) return esc(s || "-");
+  const win = m[1].toUpperCase() === "W";
+  return `<span class="strk ${win ? "strk-w" : "strk-l"}">${m[2]}連${win ? "勝" : "敗"}</span>`;
+}
+
+function confTableHTML(confKey, zhTitle, enTitle, rows) {
+  const body = rows.map((r) => {
+    const cls = [
+      r.seed <= 6 ? "tier-playoff" : r.seed <= 10 ? "tier-playin" : "tier-out",
+      r.seed === 6 ? "cut-playoff" : r.seed === 10 ? "cut-playin" : "",
+    ].filter(Boolean).join(" ");
+    return `<tr class="${cls}">
+      <td>
+        <div class="st-team">
+          <span class="st-seed">${r.seed}</span>
+          <img src="${logo(r.abbr)}" alt="" loading="lazy">
+          <span class="st-name">${esc(TEAM_ZH[r.abbr] || r.name)}</span>
+        </div>
+      </td>
+      <td class="st-wl">${esc(r.wl)}</td>
+      <td>${esc(r.pct)}</td>
+      <td>${esc(r.gb)}</td>
+      <td>${esc(r.l10 || "-")}</td>
+      <td>${fmtStreakHTML(r.strk)}</td>
+    </tr>`;
+  }).join("");
+  return `<section class="conf-pane" data-conf="${confKey}">
+    <h3 class="conf-heading">${zhTitle} <small>${enTitle}</small></h3>
+    <div class="scroll st-scroll">
+      <table class="st-table">
+        <thead>
+          <tr>
+            <th>球隊</th>
+            <th>勝-敗</th>
+            <th>勝率</th>
+            <th>勝差</th>
+            <th>近10</th>
+            <th>近況</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>
+  </section>`;
+}
+
+function setActiveConf(conf) {
+  activeConf = conf;
+  for (const btn of document.querySelectorAll(".conf-tab")) {
+    btn.setAttribute("aria-selected", btn.dataset.conf === conf ? "true" : "false");
+  }
+  const grid = $(".standings-grid", $("#standings-body"));
+  if (grid) grid.dataset.active = conf;
+}
+
+function paintStandings(st) {
+  $("#standings-sub").textContent = `${st.live ? "🟢 ESPN 即時連線" : "數據來源：ESPN"} · 更新於 ${fmtUpdated(st.updated)}（台灣）`;
+  $("#standings-body").innerHTML = `<div class="standings-grid" data-active="${activeConf}">
+    ${confTableHTML("east", "東區", "Eastern", st.east)}
+    ${confTableHTML("west", "西區", "Western", st.west)}
+  </div>`;
+}
+
+async function renderStandingsModal(force = false) {
+  const sub = $("#standings-sub");
+  const body = $("#standings-body");
+  const refreshBtn = $("#standings-refresh");
+  if (!force && standingsCache && Date.now() - standingsFetchedAt < STANDINGS_TTL) {
+    paintStandings(standingsCache);
+    return;
+  }
+  refreshBtn.disabled = true;
+  if (!body.innerHTML) body.innerHTML = `<p class="st-loading">正在取得最新戰績排名…</p>`;
+  sub.textContent = "同步最新戰績中…";
+
+  // 先秒讀本地 standings.json 立即顯示，同時向 ESPN 抓當下即時數據覆蓋
+  let shown = !!standingsCache;
+  const staticTask = getJSON("data/standings.json").then((st) => {
+    if (!shown || !standingsCache?.live) {
+      standingsCache = { ...st, live: false };
+      standingsFetchedAt = Date.now();
+      paintStandings(standingsCache);
+      shown = true;
+    }
+    return st;
+  }).catch(() => null);
+
+  try {
+    const live = await fetchLiveESPN();
+    standingsCache = live;
+    standingsFetchedAt = Date.now();
+    paintStandings(live);
+    shown = true;
+  } catch {
+    await staticTask;
+    if (!shown) {
+      sub.textContent = "暫時無法取得資料";
+      body.innerHTML = `<p class="st-loading">排名資料讀取失敗，請稍後再試。</p>`;
+    }
+  } finally {
+    refreshBtn.disabled = false;
+  }
+}
+
+function openStandings() {
+  const modal = $("#standings-modal");
+  modal.hidden = false;
+  document.body.classList.add("modal-open");
+  renderStandingsModal(false);
+}
+
+function closeStandings() {
+  const modal = $("#standings-modal");
+  if (modal.hidden) return;
+  modal.hidden = true;
+  document.body.classList.remove("modal-open");
+}
+
+$("#standings-btn").onclick = openStandings;
+$("#standings-close").onclick = closeStandings;
+$("#standings-refresh").onclick = () => renderStandingsModal(true);
+$("#standings-modal").addEventListener("click", (e) => {
+  if (e.target.id === "standings-modal") closeStandings();
+});
+for (const btn of document.querySelectorAll(".conf-tab")) {
+  btn.onclick = () => setActiveConf(btn.dataset.conf);
+}
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeStandings();
+});
 
 init();

@@ -33,6 +33,7 @@ DATA_DIR = ROOT / "docs" / "data"
 
 ESPN_SCOREBOARD = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates={d}"
 ESPN_SUMMARY = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event={id}"
+ESPN_STANDINGS = "https://site.api.espn.com/apis/v2/sports/basketball/nba/standings"
 
 YT_API = "https://www.googleapis.com/youtube/v3/"
 REGION = "TW"              # 影片必須能在這個地區播放
@@ -154,6 +155,26 @@ def parse_boxscore(summary: dict) -> dict:
     return {"teams": teams}
 
 
+def pre_game_record(comp_team: dict, is_final: bool, season_type: int, won: bool | None) -> str:
+    """回傳該隊在本場比賽開打前的戰績（如 '10-7'），避免暴雷本場勝負。"""
+    recs = comp_team.get("records") or []
+    rec = next(
+        (r for r in recs if r.get("type") == "total" or r.get("name") == "overall"),
+        recs[0] if recs else None,
+    )
+    summary = ((rec or {}).get("summary") or "").strip()
+    m = re.fullmatch(r"(\d+)-(\d+)", summary)
+    if not m:
+        return summary
+    w, l = int(m.group(1)), int(m.group(2))
+    if is_final and season_type in (1, 2) and won is not None:
+        if won:
+            w = max(0, w - 1)
+        else:
+            l = max(0, l - 1)
+    return f"{w}-{l}"
+
+
 def fetch_games(d: date) -> list[dict]:
     sb = get_json(ESPN_SCOREBOARD.format(d=d.strftime("%Y%m%d")))
     games = []
@@ -162,12 +183,32 @@ def fetch_games(d: date) -> list[dict]:
         status = ev["status"]["type"]
         side = {c["homeAway"]: c for c in comp["competitors"]}
         home, away = side["home"], side["away"]
+        is_final = status["state"] in DONE_STATES
+        season_type = int((ev.get("season") or {}).get("type") or 2)
+        home_won: bool | None = None
+        if is_final:
+            try:
+                hs, as_ = int(home["score"]), int(away["score"])
+                if hs != as_:
+                    home_won = hs > as_
+            except (KeyError, TypeError, ValueError):
+                if home.get("winner") is not None:
+                    home_won = bool(home["winner"])
+        away_won = (not home_won) if home_won is not None else None
         g = {
             "id": ev["id"],
             "start": ev["date"],
-            "home": {"abbr": home["team"]["abbreviation"], "name": home["team"]["name"]},
-            "away": {"abbr": away["team"]["abbreviation"], "name": away["team"]["name"]},
-            "state": "final" if status["state"] in DONE_STATES else (
+            "home": {
+                "abbr": home["team"]["abbreviation"],
+                "name": home["team"]["name"],
+                "record": pre_game_record(home, is_final, season_type, home_won),
+            },
+            "away": {
+                "abbr": away["team"]["abbreviation"],
+                "name": away["team"]["name"],
+                "record": pre_game_record(away, is_final, season_type, away_won),
+            },
+            "state": "final" if is_final else (
                 "skipped" if status["name"] in SKIP_NAMES else "pending"),
             "note": (comp.get("notes") or [{}])[0].get("headline", "") if comp.get("notes") else "",
             "video": None,
@@ -183,6 +224,43 @@ def fetch_games(d: date) -> list[dict]:
             g["boxscore"] = parse_boxscore(summary)
         games.append(g)
     return games
+
+
+def fetch_standings() -> dict:
+    """從 ESPN 抓最新東西區排名表。"""
+    raw = get_json(ESPN_STANDINGS)
+    confs: dict[str, list[dict]] = {}
+    for ch in raw.get("children", []):
+        label = (ch.get("abbreviation") or ch.get("name") or "").lower()
+        key = "east" if "east" in label else ("west" if "west" in label else label)
+        entries = (ch.get("standings") or {}).get("entries") or []
+        rows = []
+        for e in entries:
+            team = e.get("team") or {}
+            sd = {s.get("name"): s.get("displayValue", "") for s in e.get("stats") or []}
+            sv = {s.get("name"): s.get("value") for s in e.get("stats") or []}
+            seed = int(sv.get("playoffSeed") or 99)
+            w, l = sd.get("wins", ""), sd.get("losses", "")
+            rows.append({
+                "seed": seed,
+                "abbr": team.get("abbreviation", ""),
+                "name": team.get("shortDisplayName") or team.get("name", ""),
+                "wl": sd.get("overall") or (f"{w}-{l}" if w != "" and l != "" else ""),
+                "pct": sd.get("winPercent", ""),
+                "gb": sd.get("gamesBehind", "-"),
+                "home": sd.get("Home", ""),
+                "road": sd.get("Road", ""),
+                "l10": sd.get("Last Ten Games", ""),
+                "strk": sd.get("streak", ""),
+                "_pct": float(sv.get("winPercent") or 0.0),
+            })
+        rows.sort(key=lambda r: (r["seed"], -r["_pct"]))
+        for i, r in enumerate(rows, 1):
+            if r["seed"] == 99:
+                r["seed"] = i
+            r.pop("_pct", None)
+        confs[key] = rows
+    return {"east": confs.get("east", []), "west": confs.get("west", [])}
 
 
 # ---------------------------------------------------------------- YouTube
@@ -385,6 +463,20 @@ def main() -> int:
         n_final = sum(g["state"] == "final" for g in day["games"])
         n_video = sum(bool(g["video"]) for g in day["games"])
         print(f"{d}: {len(day['games'])} 場，已結束 {n_final}，有影片 {n_video}")
+
+    # standings.json：最新東西區排名（內容有變才寫入）
+    st_path = DATA_DIR / "standings.json"
+    if not args.date or not st_path.exists():
+        try:
+            st = fetch_standings()
+            if st["east"] and st["west"]:
+                prev_st = json.loads(st_path.read_text()) if st_path.exists() else None
+                if not prev_st or {k: v for k, v in prev_st.items() if k != "updated"} != st:
+                    st["updated"] = now.isoformat(timespec="seconds")
+                    st_path.write_text(json.dumps(st, ensure_ascii=False, separators=(",", ":")))
+                    print("standings: 已更新東西區排名")
+        except Exception as e:
+            print(f"⚠️ 排名表更新失敗：{e}")
 
     # index.json：列出所有已有資料的日期（新到舊）
     all_days = sorted((p.stem for p in DATA_DIR.glob("????-??-??.json")), reverse=True)

@@ -11,6 +11,8 @@
 - 點「▶ 看後段」直接從影片 80% 處開始播（約第四節），可用「⏪ 30 秒／跳到後段／從頭看」微調
 - 精彩度排序：越精彩越上面，排序依據只在後端計算，前端看不到任何分數
 - 防暴雷：不使用 YouTube 縮圖、不顯示影片長度、暫停與片尾時用自己的畫面蓋住 YouTube 推薦影片
+- 賽前戰績：每隊名稱旁顯示該場開打前的勝敗紀錄（如 `10-7`），掌握球隊近況又不暴雷當場勝負
+- 東西區最新排名：點右上角「🏆 東西區排名」彈出視窗查看即時排名表（含名次、勝敗、勝率、勝差、近 10 場、連勝敗，並標示季後賽與附加賽線）
 - Box score：預設收合，點開前會再確認一次（因為會看到比分）
 - 回看最近 7 天
 - 每 20 分鐘自動檢查（NBA 與桌球同一個流程；GitHub 排程常延遲或跳過，建議另用 cron-job.org 觸發）；還沒上架的影片會在之後的執行自動補抓，頁面上會顯示還缺幾場
@@ -28,11 +30,11 @@
 ```
 GitHub Actions（.github/workflows/update.yml）
   └─ scripts/fetch.py
-       ├─ ESPN 公開 API：賽程、比分、box score、逐球紀錄
+       ├─ ESPN 公開 API：賽程、比分、賽前戰績、東西區排名、box score、逐球紀錄
        ├─ YouTube Data API：各來源頻道上傳清單 + 台灣可播檢查
-       └─ 寫入 docs/data/YYYY-MM-DD.json、docs/data/index.json
+       └─ 寫入 docs/data/YYYY-MM-DD.json、docs/data/standings.json、docs/data/index.json
 GitHub Pages（docs/）
-  └─ index.html + app.js + style.css，只讀 JSON，純靜態
+  └─ index.html + app.js + style.css，純靜態（排名表優先即時抓 ESPN，失敗退回 standings.json）
 ```
 
 - 已完整（全部比賽結束且都有影片）的日期不會再重抓

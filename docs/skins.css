@@ -148,3 +148,66 @@
 [data-skin="D"] .event .ev-name, [data-skin="D"] .event .ev-sub, [data-skin="D"] .event .meta { color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,.35); }
 [data-skin="E"] .event .ev-name { font-weight: 900; }
 [data-skin="C"] .items .btn.primary { font-size: 17px; padding: 4px 12px; }
+
+/* ---------------------------------------------------------
+   戰績標籤與東西區排名視窗（C / D / E 三種風格適配）
+   --------------------------------------------------------- */
+[data-skin="C"] .standings-btn { border: 1.5px solid var(--accent); border-radius: 2px; }
+[data-skin="C"] .team .rec {
+  font: 400 14px/1.15 "Bebas Neue", sans-serif; letter-spacing: .06em;
+  background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: 2px; padding: 1px 5px;
+}
+[data-skin="C"] .modal-card { border: 2px solid var(--border); border-radius: 4px; box-shadow: 6px 6px 0 rgba(35, 32, 27, .28); }
+[data-skin="C"] .modal-head { border-bottom: 3px double var(--border); }
+[data-skin="C"] .modal-head h2, [data-skin="C"] .conf-heading { font-family: "Noto Serif TC", serif; font-weight: 900; }
+[data-skin="C"] .conf-heading small { font: 400 15px "Bebas Neue", sans-serif; letter-spacing: .08em; }
+[data-skin="C"] .conf-tab, [data-skin="C"] .modal-close, [data-skin="C"] .st-seed, [data-skin="C"] .strk { border-radius: 2px; }
+[data-skin="C"] tr.tier-playin .st-seed { background: rgba(180, 102, 14, .18); color: #8c4b00; }
+[data-skin="C"] .legend-item .dot.playin { background: #b4660e; }
+[data-skin="C"] .strk-w { background: rgba(21, 128, 61, .13); color: #166534; }
+[data-skin="C"] .strk-l { background: rgba(179, 38, 30, .12); color: #991b1b; }
+
+[data-skin="D"] .standings-btn { border: 0; }
+[data-skin="D"] .team .rec {
+  background: rgba(0, 0, 0, .38); color: #fff;
+  border: 1px solid rgba(255, 255, 255, .2); text-shadow: none;
+}
+[data-skin="D"] .modal-head h2 { font: 400 21px/1.15 "Anton", "Noto Sans TC", sans-serif; letter-spacing: .02em; }
+[data-skin="D"] .conf-heading { font-weight: 900; }
+[data-skin="D"] .conf-heading small { font: 400 14px "Anton", sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+[data-skin="D"] .conf-tab { border-radius: 999px; border: 0; }
+[data-skin="D"] .modal-refresh { background: var(--surface-2); color: var(--text); }
+[data-skin="D"] .st-team img { background: #fff; border-radius: 50%; padding: 2px; }
+
+[data-skin="E"] .standings-btn {
+  border-radius: 0; transform: skewX(-12deg);
+  background: var(--accent); border: 2px solid var(--accent); color: #fff; font-weight: 800;
+}
+[data-skin="E"] .team .rec {
+  background: #0d2a6b; color: #fff; border-radius: 0; transform: skewX(-10deg);
+  font: italic 700 13px/1.2 "Barlow Condensed", sans-serif; letter-spacing: .03em; padding: 1px 6px;
+}
+[data-skin="E"] .modal-card { border-radius: 4px; border: 0; border-top: 5px solid var(--accent); }
+[data-skin="E"] .modal-refresh { background: var(--surface-2); border-color: rgba(255, 255, 255, .35); color: #fff; }
+[data-skin="E"] .conf-tab { border-radius: 0; transform: skewX(-10deg); font: italic 700 16px "Barlow Condensed", "Noto Sans TC", sans-serif; }
+[data-skin="E"] .conf-heading { font: italic 800 19px/1.1 "Barlow Condensed", "Noto Sans TC", sans-serif; text-transform: uppercase; }
+[data-skin="E"] .st-team img { background: #fff; border-radius: 50%; padding: 2px; }
+[data-skin="E"] .st-seed { border-radius: 0; transform: skewX(-8deg); font-family: "Barlow Condensed", sans-serif; font-style: italic; font-size: 13px; }
+[data-skin="E"] .strk-w { background: rgba(16, 185, 129, .22); color: #6ee7b7; }
+[data-skin="E"] .strk-l { background: rgba(239, 68, 68, .24); color: #fca5a5; }
+
+@media (max-width: 420px) {
+  [data-skin="C"] .game { padding-left: 56px; }
+  [data-skin="C"] .stub { width: 42px; font-size: 21px; }
+  [data-skin="C"] h1 { font-size: 26px; }
+  [data-skin="C"] h1 .h1b { font-size: 20px; }
+  [data-skin="D"] h1 { font-size: 25px; }
+  [data-skin="D"] h1 .h1b { font-size: 20px; }
+  [data-skin="E"] h1 { font-size: 21px; }
+  [data-skin="E"] h1 span { padding: 5px 8px; }
+  [data-skin="E"] h1 .h1b { font-size: 16px; }
+}
+@media (max-width: 520px) {
+  [data-skin="C"] .modal-card { border-radius: 8px 8px 0 0; }
+  [data-skin="E"] .modal-card { border-radius: 6px 6px 0 0; }
+}

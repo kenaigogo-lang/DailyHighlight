@@ -29,7 +29,10 @@
   <div class="wrap">
     <div class="titlebar">
       <h1><span class="h1a">NBA</span><span class="h1b">每日精華</span></h1>
-      <button class="skin-btn" id="skin-btn" type="button" title="換一種風格">🎲 換風格</button>
+      <div class="title-actions">
+        <button class="standings-btn" id="standings-btn" type="button" title="查看當下最新東西區戰績排名">🏆 東西區排名</button>
+        <button class="skin-btn" id="skin-btn" type="button" title="換一種風格">🎲 換風格</button>
+      </div>
     </div>
     <nav class="tabs" aria-label="運動"><a class="tab" href="./" aria-current="page">🏀 NBA</a><a class="tab" href="tt.html">🏓 桌球</a><a class="tab" href="climb.html">🧗 攀登</a><a class="tab" href="zby.html">🏃 張博雅</a></nav>
     <nav class="dates" id="dates" aria-label="選擇日期"></nav>
@@ -39,7 +42,7 @@
 </header>
 
 <main class="wrap">
-  <p class="hint">由上到下：越精彩越前面。畫面上不會出現任何比分。</p>
+  <p class="hint">由上到下：越精彩越前面。畫面上不會出現任何比分（隊名旁為賽前戰績）。</p>
   <ol class="games" id="games"></ol>
   <p class="empty" id="empty" hidden></p>
 </main>
@@ -48,6 +51,31 @@
   影片來源：YouTube（只選台灣可播放的精華）· 數據：ESPN<br>
   每 20 分鐘自動檢查，沒抓到的影片之後會自動補上
 </footer>
+
+<div class="modal-backdrop" id="standings-modal" role="dialog" aria-modal="true" aria-labelledby="standings-title" hidden>
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-title-wrap">
+        <h2 id="standings-title">🏆 NBA 東西區最新排名</h2>
+        <p class="modal-sub" id="standings-sub">載入中…</p>
+      </div>
+      <div class="modal-head-actions">
+        <button class="btn small modal-refresh" id="standings-refresh" type="button" title="重新抓取當下最新排名">🔄 更新</button>
+        <button class="modal-close" id="standings-close" type="button" aria-label="關閉視窗">✕</button>
+      </div>
+    </div>
+    <div class="conf-tabs" role="tablist" aria-label="選擇分區">
+      <button class="conf-tab" id="conf-east-btn" type="button" role="tab" aria-selected="true" data-conf="east">東區 Eastern</button>
+      <button class="conf-tab" id="conf-west-btn" type="button" role="tab" aria-selected="false" data-conf="west">西區 Western</button>
+    </div>
+    <div class="modal-body" id="standings-body"></div>
+    <div class="modal-foot">
+      <span class="legend-item"><i class="dot playoff"></i>前 6 名晉級季後賽</span>
+      <span class="legend-item"><i class="dot playin"></i>7–10 名附加賽</span>
+      <span class="legend-note">已含最新完賽結果</span>
+    </div>
+  </div>
+</div>
 
 <template id="tpl-game">
   <li class="game">
